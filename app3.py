@@ -419,11 +419,16 @@ def submit_incident():
 @app.route("/", methods=["GET", "POST"])
 def root():
     """Handles root endpoint"""
-    if request.method == "POST":
-        logger.info("POST request received at root endpoint")
-        return jsonify({"message": "POST request received but not handled here."}), 200
-    logger.info("GET request received at root endpoint")
-    return "Welcome to the Tech Support Bot!"
+    try:
+        if request.method == "POST":
+            logger.info("POST request received at root endpoint")
+            return jsonify({"message": "POST request received but not handled here."}), 200
+        
+        logger.info("GET request received at root endpoint - redirecting to dashboard")
+        return render_template("dashboard.html")
+    except Exception as e:
+        logger.error(f"Error in root route: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 
