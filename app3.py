@@ -39,7 +39,7 @@ SLACK_WEBHOOK = "https://hooks.slack.com/services/T08DKP893MY/B08FSBM2W74/yUry1C
 
 # Ensure the template folder path is correct
 template_dir = os.path.abspath('C:/Flask/templates')
-app = Flask(__name__, static_folder='static', template_folder=template_dir)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
 
 
@@ -755,8 +755,8 @@ def health_check():
 
 
 if __name__ == "__main__":
-    logger.info("Starting Flask application...")
-    app.run(debug=True, host="0.0.0.0", port=5003)
+    port = int(os.environ.get("PORT", 5003))
+    app.run(host='0.0.0.0', port=port)
 
 
 
