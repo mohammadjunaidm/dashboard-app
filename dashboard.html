@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <style>
+        .table {
+            table-layout: fixed;
+            width: 100%;
+        }
+        .table th,
+        .table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .table th {
+            position: sticky;
+            top: 0;
+            background-color: #f8f9fa;
+            z-index: 10;
+        }
+        /* Column widths */
+        .table th:nth-child(1),
+        .table td:nth-child(1) { width: 8%; }  /* Number */
+        .table th:nth-child(2),
+        .table td:nth-child(2) { width: 20%; } /* Short Description */
+        .table th:nth-child(3),
+        .table td:nth-child(3) { width: 10%; } /* Created */
+        .table th:nth-child(4),
+        .table td:nth-child(4) { width: 8%; }  /* Caller */
+        .table th:nth-child(5),
+        .table td:nth-child(5) { width: 8%; }  /* Assigned To */
+        .table th:nth-child(6),
+        .table td:nth-child(6) { width: 7%; }  /* Status */
+        .table th:nth-child(7),
+        .table td:nth-child(7) { width: 8%; }  /* Priority */
+        .table th:nth-child(8),
+        .table td:nth-child(8) { width: 8%; }  /* Category */
+        .table th:nth-child(9),
+        .table td:nth-child(9) { width: 8%; }  /* Assignment Group */
+        .table th:nth-child(10),
+        .table td:nth-child(10) { width: 8%; } /* Resolved */
+        .table th:nth-child(11),
+        .table td:nth-child(11) { width: 7%; } /* Total Time Spent */
+
+        .table-responsive {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .status-badge, .priority-badge {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fff;
+            font-size: 13px;
+        }
+        .dashboard-container {
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .table {
+            font-size: 13px;
+            margin-bottom: 10px;
+            border: 1px solid #dee2e6;
+        }
+        .table th {
+            background-color: #f8f9fa;
+            padding: 8px;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 1px solid #dee2e6;
+            white-space: nowrap;
+        }
+        .table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: middle;
+        }
+        .table-hover tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .status-badge, .priority-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: normal;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        /* Status badges */
+        .status-new { 
+            background-color: #e3f2fd; 
+            color: #0d47a1;
+        }
+        .status-progress, .status-hold { 
+            background-color: #ffebee; 
+            color: #c62828;
+        }
+        .status-resolved { 
+            background-color: #e8f5e9; 
+            color: #2e7d32;
+        }
+        .status-closed { 
+            background-color: #f5f5f5; 
+            color: #616161;
+        }
+        /* Priority badges */
+        .priority-critical { 
+            background-color: #ffebee; 
+            color: #c62828;
+        }
+        .priority-high { 
+            background-color: #fff3e0; 
+            color: #e65100;
+        }
+        .priority-moderate { 
+            background-color: #e8f5e9; 
+            color: #2e7d32;
+        }
+        .priority-low { 
+            background-color: #e3f2fd; 
+            color: #1565c0;
+        }
+        .priority-planning { 
+            background-color: #f3e5f5; 
+            color: #6a1b9a;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        .pagination {
+            margin-top: 15px;
+            gap: 5px;
+        }
+        .pagination .page-link {
+            padding: 4px 8px;
+            font-size: 13px;
+        }
+        .time-spent {
+            font-family: monospace;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .showing-entries {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+            text-align: right;
+        }
+        .sortable::after {
+            font-size: 10px;
+            right: 4px;
+        }
+        .table-responsive {
+            margin-bottom: 10px;
+        }
+        #loading {
+            padding: 10px;
+            font-size: 13px;
+        }
+        /* Compact row styles */
+        .table tbody tr td {
+            line-height: 1.3;
+        }
+        /* Number column style */
+        .table td:first-child {
+            color: #1a73e8;
+            font-weight: 500;
+        }
+        /* Make description column wider */
+        .table th:nth-child(2),
+        .table td:nth-child(2) {
+            min-width: 250px;
+            max-width: 400px;
+        }
+        /* Ensure date columns don't wrap */
+        .table th:nth-child(3),
+        .table td:nth-child(3),
+        .table th:last-child,
+        .table td:last-child {
+            white-space: nowrap;
+        }
+        .filters-container {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        .filters-container label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #495057;
+        }
+        .filters-container .form-select,
+        .filters-container .form-control {
+            font-size: 13px;
+        }
+        .filters-container .btn {
+            margin-right: 5px;
+        }
+        .btn-primary {
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+        }
+        .btn-secondary {
+            background-color: #5f6368;
+            border-color: #5f6368;
+        }
+        .form-select-sm {
+            font-size: 13px;
+            padding: 0.25rem 2rem 0.25rem 0.5rem;
+        }
+        #assignmentGroupFilter option {
+            padding: 4px;
+        }
+        .filters-container .col-md-3 {
+            padding-right: 15px;
+        }
+        .how-to-use {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .how-to-use summary {
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .how-to-use ul {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+        .chart-container {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 300px; 
+            width: 100%;
+            max-width: 100%; 
+            margin: 0 auto;
+        }
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+            padding-left: 10px;
+        }
+        .developer-details-container {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 15px;
+        }
+
+        #developerDetailsTable {
+            font-size: 13px;
+        }
+
+        #developerDetailsTable th,
+        #developerDetailsTable td {
+            padding: 8px;
+            vertical-align: middle;
+        }
+
+        #developerDetailsTable th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .table th {
+            position: relative;
+            cursor: col-resize;
+        }
+
+        .table th::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 25%;
+            height: 50%;
+            border-right: 2px solid #ddd;
+            cursor: col-resize;
+        }
+        .chart-section, .developer-section, .category-section {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            flex-grow: 1;
+            position: relative;
+            height: 100%;
+        }
+
+        .table-responsive {
+            height: 300px;
+            overflow-y: auto;
+        }
+
+        #developerDetailsTable {
+            margin-bottom: 0;
+        }
+
+        #developerDetailsTable thead th {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+
+        .developer-section .pagination {
+            margin-top: auto;
+            padding-top: 10px;
+        }
+        .category-section {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .col-md-4 {
+            padding: 10px;
+        }
+        .filters-container .row + .row {
+            border-top: 1px solid #dee2e6;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        #filterValue {
+            width: 100%;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        .filters-container .form-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 4px;
+            }
+
+        .filters-container .form-select,
+        .filters-container .form-control {
+            font-size: 13px;
+        }
+
+        .filters-container .btn {
+            margin-bottom: 2px;
+            height: 31px;
+            display: flex;
+            align-items: center;
+        }
+
+        .custom-filter-row {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .filters-container .row {
+            align-items: flex-end;
+        }
+
+        .form-select-sm, .form-control-sm {
+            height: 31px;
+            padding-top: 0.25rem;
+            padding-bottom: 0.25rem;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.75rem;
+        }
+
+        .d-flex {
+            gap: 8px;
+        }
+        .incident-link {
+            color: #1a73e8;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .incident-link:hover {
+            color: #1557b0;
+            text-decoration: underline;
+        }
+
+        /* Optional: Add an icon to indicate external link */
+        .incident-link::after {
+            content: '↗';
+            font-size: 12px;
+            margin-left: 3px;
+            display: inline-block;
+            opacity: 0.7;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="container-fluid">
+            <h1>Incident Dashboard</h1>
+
+            <details class="how-to-use mb-4">
+                <summary>How to use?</summary>
+                <ul>
+                    <li>Use the Assignment Group filter to view incidents for specific teams.</li>
+                    <li>Set Date From and Date To to filter incidents by creation date.</li>
+                    <li>Click on column headers to sort the incidents.</li>
+                    <li>Use pagination at the bottom to navigate through the incidents.</li>
+                    <li>The dashboard auto-refreshes every 5 minutes.</li>
+                </ul>
+            </details>
+            
+            <div class="filters-container mb-4">
+                <!-- First row for main filters -->
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-3">
+                        <label for="assignmentGroupFilter" class="form-label">Assignment Group</label>
+                        <select class="form-select form-select-sm" id="assignmentGroupFilter">
+                            <option value="">All Assignment Groups</option>
+                            <option value="GTS">GTS</option>
+                            <option value="FTS">FTS</option>
+                            <option value="Experts Engine">Experts Engine</option>
+                            <option value="Sourcing 2.0">Sourcing 2.0</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="dateFrom" class="form-label">Date From</label>
+                        <input type="date" class="form-control form-control-sm" id="dateFrom">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="dateTo" class="form-label">Date To</label>
+                        <input type="date" class="form-control form-control-sm" id="dateTo">
+                    </div>
+                    <div class="col-md-3 d-flex justify-content-start">
+                        <button class="btn btn-primary btn-sm me-2" id="applyFilters">Apply Filters</button>
+                        <button class="btn btn-secondary btn-sm" id="resetFilters">Reset</button>
+                    </div>
+                </div>
+            
+                <!-- Second row for custom filters -->
+                <div class="row g-3 align-items-end custom-filter-row">
+                    <div class="col-md-3">
+                        <label for="columnFilter" class="form-label">Filter Column</label>
+                        <select class="form-select form-select-sm" id="columnFilter">
+                            <option value="">Select Column</option>
+                            <option value="number">Number</option>
+                            <option value="short_description">Description</option>
+                            <option value="caller">Caller</option>
+                            <option value="assigned_to">Assigned To</option>
+                            <option value="status">Status</option>
+                            <option value="priority">Priority</option>
+                            <option value="category">Category</option>
+                            <option value="assignment_group">Assignment Group</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filterOperator" class="form-label">Operator</label>
+                        <select class="form-select form-select-sm" id="filterOperator">
+                            <option value="contains">Contains</option>
+                            <option value="equals">Equals</option>
+                            <option value="startsWith">Starts with</option>
+                            <option value="endsWith">Ends with</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="filterValue" class="form-label">Filter Value</label>
+                        <input type="text" class="form-control form-control-sm" id="filterValue" placeholder="Enter value">
+                    </div>
+                    <div class="col-md-2 d-flex justify-content-start">
+                        <button class="btn btn-primary btn-sm me-2" id="applyCustomFilter">Apply</button>
+                        <button class="btn btn-secondary btn-sm" id="clearCustomFilter">Clear</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="number">Number</th>
+                            <th class="sortable" data-sort="short_description">Short Description</th>
+                            <th class="sortable" data-sort="created_on">Created</th>
+                            <th class="sortable" data-sort="caller">Caller</th>
+                            <th class="sortable" data-sort="assigned_to">Assigned To</th>
+                            <th class="sortable" data-sort="status">Status</th>
+                            <th class="sortable" data-sort="priority">Priority</th>
+                            <th class="sortable" data-sort="category">Category</th>
+                            <th class="sortable" data-sort="assignment_group">Assignment Group</th>
+                            <th class="sortable" data-sort="resolved_at">Resolved</th>
+                            <th class="sortable" data-sort="time_spent">Total Time Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incidentTableBody">
+                        <!-- Incidents will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            <nav aria-label="Incident pagination">
+                <ul id="pagination" class="pagination justify-content-center">
+                    <!-- Pagination will be populated here -->
+                </ul>
+            </nav>
+
+
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="chart-section">
+                        <h5 class="mb-3">Issue Count by Priority</h5>
+                        <div id="chartContainer" class="chart-container">
+                            <canvas id="priorityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="developer-section">
+                        <h5 class="mb-3">Developer wise details</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="developerDetailsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Assignee</th>
+                                        <th>Count</th>
+                                        <th>Avg Resolution Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="developerTableBody">
+                                    <!-- Developer data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <nav aria-label="Developer details pagination">
+                            <ul id="developerPagination" class="pagination justify-content-center">
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="category-section">
+                        <h5 class="mb-3">Category wise details</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="categoryDetailsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="categoryTableBody">
+                                    <!-- Category data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <nav aria-label="Category details pagination">
+                            <ul id="categoryPagination" class="pagination justify-content-center">
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>
