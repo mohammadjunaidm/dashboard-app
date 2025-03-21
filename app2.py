@@ -25,8 +25,8 @@ SERVICENOW_PASSWORD = "xH6cF@Bml-4H"
 GOOGLE_CHAT_WEBHOOK = "https://chat.googleapis.com/v1/spaces/AAAAYs9cl9I/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=p1k1CtHPjN13dp2ByQi9hWditYfXmGquUJ9nv7-2HZA"
 
 # Ensure the template folder path is correct
-template_dir = os.path.abspath('C:/Flask/templates')
-app = Flask(__name__, static_folder='static', template_folder=template_dir)
+
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
 def get_assignment_group_sys_id(group_name):
     """Get the sys_id for an assignment group"""
@@ -267,10 +267,10 @@ def google_chat_webhook():
         if "@tech-support" in message_text:
             logger.info("@tech-support mention detected")
             
-            base_url = request.url_root.rstrip('/')
+            # Use the Render URL here
+            base_url = "https://dashboard-app-2-yiq8.onrender.com"
             full_form_url = f"{base_url}/incident-form"
            
-            
             response_data = {
                 "cardsV2": [{
                     "cardId": "incident_card",
@@ -288,8 +288,7 @@ def google_chat_webhook():
                                                 "url": full_form_url
                                             }
                                         }
-                                    }
-                                    ]
+                                    }]
                                 }
                             }]
                         }]
@@ -307,6 +306,26 @@ def google_chat_webhook():
         logger.error(f"Error in webhook: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"text": "I'm here! But encountered an error. Please try again."}), 200
 
+@app.route("/test-webhook", methods=["GET"])
+def test_webhook():
+    try:
+        test_data = {
+            "message": {
+                "text": "@tech-support",
+                "sender": {
+                    "displayName": "Test User",
+                    "email": "test@example.com"
+                }
+            }
+        }
+        
+        response = google_chat_webhook()
+        return jsonify({
+            "request": test_data,
+            "response": response
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/health", methods=["GET"])
 def health_check():
