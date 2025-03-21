@@ -267,7 +267,6 @@ def google_chat_webhook():
         if "@tech-support" in message_text:
             logger.info("@tech-support mention detected")
             
-            # Use the Render URL here
             base_url = "https://dashboard-app-2-yiq8.onrender.com"
             full_form_url = f"{base_url}/incident-form"
            
@@ -305,7 +304,7 @@ def google_chat_webhook():
     except Exception as e:
         logger.error(f"Error in webhook: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"text": "I'm here! But encountered an error. Please try again."}), 200
-
+        
 @app.route("/test-webhook", methods=["GET"])
 def test_webhook():
     try:
