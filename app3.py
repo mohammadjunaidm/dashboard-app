@@ -129,7 +129,6 @@ def login():
         logger.error(f"Login error: {str(e)}")
         session.clear()
         return render_template('error.html', error="Login system temporarily unavailable"), 500
-)
 
 
 @app.route("/callback")
