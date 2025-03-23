@@ -115,9 +115,14 @@ def login():
 @app.route("/callback")
 def callback():
     try:
+        logger.info("Callback route accessed")
         token = auth0.authorize_access_token()
+        logger.info("Access token obtained")
         resp = auth0.get('userinfo')
+        logger.info("User info obtained")
         userinfo = resp.json()
+        logger.info(f"User info parsed: {userinfo}")
+        
         session['jwt_payload'] = userinfo
         session['user'] = {
             'user_id': userinfo['sub'],
@@ -125,13 +130,15 @@ def callback():
             'email': userinfo.get('email', ''),
             'picture': userinfo.get('picture', '')
         }
-        # Get the next URL from session or default to dashboard
+        logger.info("Session data set")
+        
         next_url = session.get('next', url_for('dashboard'))
-        # Remove the next URL from session
         session.pop('next', None)
+        logger.info(f"Redirecting to: {next_url}")
         return redirect(next_url)
     except Exception as e:
-        logger.error(f"Error in callback: {str(e)}")
+        logger.error(f"Callback error: {str(e)}")
+        logger.error(traceback.format_exc())
         return redirect(url_for('login'))
 
 
