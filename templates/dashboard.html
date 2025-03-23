@@ -3,10 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Incident Dashboard</title>
+    <title>Leviathan Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="dashboard.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://cdn.auth0.com/js/auth0/9.11/auth0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
 
     <style>
         .table {
@@ -16,7 +23,7 @@
         .table th,
         .table td {
             overflow: hidden;
-            text-overflow: ellipsis;
+            text-overflow: ellipsis;    
             white-space: nowrap;
         }
         .table th {
@@ -49,9 +56,30 @@
         .table th:nth-child(11),
         .table td:nth-child(11) { width: 7%; } /* Total Time Spent */
 
+
         .table-responsive {
-            max-height: 70vh;
-            overflow-y: auto;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        #incidentTable {
+            width: 100%;
+            table-layout: auto;
+            white-space: nowrap;
+        }
+        #incidentTable th,
+        #incidentTable td {
+            max-width: 200px; /* Adjust as needed */
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+
+        #incidentTable th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         .status-badge, .priority-badge {
             max-width: 100%;
@@ -59,8 +87,14 @@
             text-overflow: ellipsis;
         }
         .tooltip {
+            font-size: 12px;
             position: relative;
             display: inline-block;
+        }
+        .tooltip-inner {
+            max-width: 200px;
+            padding: 5px 10px;
+            background-color: #333;
         }
         .tooltip .tooltiptext {
             visibility: hidden;
@@ -86,6 +120,7 @@
             font-family: Arial, sans-serif;
             background-color: #fff;
             font-size: 13px;
+            color: #1a0404;
         }
         .dashboard-container {
             padding: 15px;
@@ -121,41 +156,41 @@
             white-space: nowrap;
         }
         /* Status badges */
-        .status-new { 
-            background-color: #e3f2fd; 
+        .status-new {
+            background-color: #e3f2fd;
             color: #0d47a1;
         }
-        .status-progress, .status-hold { 
-            background-color: #ffebee; 
+        .status-progress, .status-hold {
+            background-color: #ffebee;
             color: #c62828;
         }
-        .status-resolved { 
-            background-color: #e8f5e9; 
+        .status-resolved {
+            background-color: #e8f5e9;
             color: #2e7d32;
         }
-        .status-closed { 
-            background-color: #f5f5f5; 
+        .status-closed {
+            background-color: #f5f5f5;
             color: #616161;
         }
         /* Priority badges */
-        .priority-critical { 
-            background-color: #ffebee; 
+        .priority-critical {
+            background-color: #ffebee;
             color: #c62828;
         }
-        .priority-high { 
-            background-color: #fff3e0; 
+        .priority-high {
+            background-color: #fff3e0;
             color: #e65100;
         }
-        .priority-moderate { 
-            background-color: #e8f5e9; 
+        .priority-moderate {
+            background-color: #e8f5e9;
             color: #2e7d32;
         }
-        .priority-low { 
-            background-color: #e3f2fd; 
+        .priority-low {
+            background-color: #e3f2fd;
             color: #1565c0;
         }
-        .priority-planning { 
-            background-color: #f3e5f5; 
+        .priority-planning {
+            background-color: #f3e5f5;
             color: #6a1b9a;
         }
         h1 {
@@ -171,9 +206,12 @@
             font-size: 13px;
         }
         .time-spent {
-            font-family: monospace;
-            font-size: 12px;
+            display: block;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
             white-space: nowrap;
+            cursor: help;
         }
         .showing-entries {
             font-size: 13px;
@@ -278,9 +316,9 @@
         }
         .chart-wrapper {
             position: relative;
-            height: 300px; 
+            height: 300px;
             width: 100%;
-            max-width: 100%; 
+            max-width: 100%;
             margin: 0 auto;
         }
         .chart-title {
@@ -298,9 +336,11 @@
             padding: 15px;
         }
 
+
         #developerDetailsTable {
             font-size: 13px;
         }
+
 
         #developerDetailsTable th,
         #developerDetailsTable td {
@@ -308,20 +348,24 @@
             vertical-align: middle;
         }
 
+
         #developerDetailsTable th {
             background-color: #f8f9fa;
             font-weight: 600;
             color: #495057;
         }
 
+
         .table-responsive {
             overflow-x: auto;
         }
+
 
         .table th {
             position: relative;
             cursor: col-resize;
         }
+
 
         .table th::after {
             content: '';
@@ -337,26 +381,30 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
             padding: 20px;
-            height: 400px;
+            height: 500px;
             display: flex;
             flex-direction: column;
             margin-bottom: 20px;
         }
 
+
         .chart-container {
-            flex-grow: 1;
             position: relative;
-            height: 100%;
+            height: 400px !important;
+            width: 100% !important;
         }
+
 
         .table-responsive {
             height: 300px;
             overflow-y: auto;
         }
 
+
         #developerDetailsTable {
             margin-bottom: 0;
         }
+
 
         #developerDetailsTable thead th {
             position: sticky;
@@ -364,6 +412,7 @@
             background: white;
             z-index: 1;
         }
+
 
         .developer-section .pagination {
             margin-top: auto;
@@ -379,6 +428,7 @@
             flex-direction: column;
         }
 
+
         .col-md-4 {
             padding: 10px;
         }
@@ -388,9 +438,11 @@
             margin-top: 15px;
         }
 
+
         #filterValue {
             width: 100%;
         }
+
 
         .btn-sm {
             padding: 0.25rem 0.5rem;
@@ -403,10 +455,12 @@
             margin-bottom: 4px;
             }
 
+
         .filters-container .form-select,
         .filters-container .form-control {
             font-size: 13px;
         }
+
 
         .filters-container .btn {
             margin-bottom: 2px;
@@ -415,15 +469,18 @@
             align-items: center;
         }
 
+
         .custom-filter-row {
             margin-top: 15px;
             padding-top: 15px;
             border-top: 1px solid #dee2e6;
         }
 
+
         .filters-container .row {
             align-items: flex-end;
         }
+
 
         .form-select-sm, .form-control-sm {
             height: 31px;
@@ -431,9 +488,11 @@
             padding-bottom: 0.25rem;
         }
 
+
         .btn-sm {
             padding: 0.25rem 0.75rem;
         }
+
 
         .d-flex {
             gap: 8px;
@@ -444,10 +503,12 @@
             transition: color 0.2s ease;
         }
 
+
         .incident-link:hover {
             color: #1557b0;
             text-decoration: underline;
         }
+
 
         /* Optional: Add an icon to indicate external link */
         .incident-link::after {
@@ -458,13 +519,539 @@
             opacity: 0.7;
         }
 
-    </style>
-</head>
-<body>
-    <div class="dashboard-container">
-        <div class="container-fluid">
-            <h1>Incident Dashboard</h1>
 
+        #priorityChart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .filter-criterion {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .filter-criterion select,
+        .filter-criterion input {
+            margin-right: 10px;
+        }
+        .filter-criterion button {
+            padding: 2px 8px;
+            font-size: 12px;
+        }
+
+
+        .time-spent {
+            position: relative;
+            cursor: pointer;
+        }
+
+
+        .time-spent:hover::after {
+            content: attr(data-full-text);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 100%;
+            padding: 5px 10px;
+            background-color: #333;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+
+        /* Optional: Add an arrow to the tooltip */
+        .time-spent:hover::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 100%;
+            border: 5px solid transparent;
+            border-top-color: #333;
+        }
+        .team-priority-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+
+        .team-priority-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+            white-space: nowrap;
+        }
+
+
+        .team-priority-table td {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+
+
+        .team-priority-table td:first-child {
+            text-align: left;
+            font-weight: 500;
+            color: #1a73e8;
+        }
+
+
+        .team-priority-table tr:last-child {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+
+
+        .team-priority-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+
+        .team-priority-table .total-column {
+            font-weight: 600;
+            background-color: #f8f9fa;
+        }
+
+
+        .total-row {
+            background-color: #f8f9fa;
+        }
+
+
+        .team-section {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+
+        .team-section h5 {
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 600;
+        }
+
+
+        .user-profile-container {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+
+        .profile-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            cursor: pointer;
+            border: none;
+        }
+
+
+        .profile-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 280px;
+            margin-top: 8px;
+            background-color: #2D2D2D;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        .profile-dropdown.show {
+            display: block;
+        }
+
+
+        .user-info .email {
+            color: #A0A0A0;
+            font-size: 13px;
+        }
+
+
+        user-info .username {
+            color: white;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+
+
+
+        .username {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+
+
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            background-color: #8BC34A;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+
+        .filters-container {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+
+        .filters-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+
+        .filters-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+
+        .filter-criteria {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+
+        .filter-criterion {
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 5px 10px;
+        }
+
+
+        .filter-criterion select,
+        .filter-criterion input {
+            border: none;
+            background-color: transparent;
+            margin-right: 5px;
+        }
+
+
+        .filter-criterion .remove-filter {
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+
+        .filter-actions {
+            display: flex;
+            justify-content: flex-start;
+            gap: 10px;
+        }
+
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+
+        /* Add some hover effects */
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .filter-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+
+        /* Specific column widths */
+        #incidentTable th:nth-child(1),
+        #incidentTable td:nth-child(1) { min-width: 100px; } /* Number */
+
+
+        #incidentTable th:nth-child(2),
+        #incidentTable td:nth-child(2) { min-width: 250px; } /* Short Description */
+
+
+        #incidentTable th:nth-child(3),
+        #incidentTable td:nth-child(3) { min-width: 150px; } /* Created */
+
+
+        #incidentTable th:nth-child(4),
+        #incidentTable td:nth-child(4) { min-width: 150px; } /* Caller */
+
+
+        #incidentTable th:nth-child(5),
+        #incidentTable td:nth-child(5) { min-width: 150px; } /* Assigned To */
+
+
+        #incidentTable th:nth-child(6),
+        #incidentTable td:nth-child(6) { min-width: 100px; } /* Status */
+
+
+        #incidentTable th:nth-child(7),
+        #incidentTable td:nth-child(7) { min-width: 100px; } /* Priority */
+
+
+        #incidentTable th:nth-child(8),
+        #incidentTable td:nth-child(8) { min-width: 150px; } /* Category */
+
+
+        #incidentTable th:nth-child(9),
+        #incidentTable td:nth-child(9) { min-width: 150px; } /* Assignment Group */
+
+
+        #incidentTable th:nth-child(10),
+        #incidentTable td:nth-child(10) { min-width: 150px; } /* Resolved */
+
+
+        #incidentTable th:nth-child(11),
+        #incidentTable td:nth-child(11) { min-width: 120px; } /* Total Time Spent */
+
+
+        /* Hover effect for better readability */
+        #incidentTable tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+
+        /* Optional: Add a tooltip for truncated content */
+        #incidentTable td {
+            position: relative;
+        }
+
+
+        #incidentTable td:hover::after {
+            content: attr(title);
+            position: absolute;
+            left: 0;
+            top: 100%;
+            background-color: #333;
+            color: #fff;
+            padding: 5px;
+            border-radius: 3px;
+            z-index: 1000;
+            white-space: normal;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+       
+        .user-dropdown {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+
+        .user-trigger {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #8bc34a;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: #2d2d2d;
+            min-width: 250px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            margin-top: 10px;
+        }
+
+
+        .dropdown-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #3d3d3d;
+        }
+
+
+        .dropdown-header .user-full-name {
+            color: #333;
+            font-size: 16px;
+            font-weight: 500;
+            margin: 0 0 5px 0;
+        }
+
+
+        .dropdown-header .user-email {
+            color: #666;
+            font-size: 13px;
+            margin: 0;
+        }
+
+
+        .dropdown-menu {
+            padding: 8px 0;
+        }
+
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            color: #333;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+
+        .menu-item:hover {
+            background-color:#f5f5f5;
+        }
+
+
+        .menu-item i {
+            margin-right: 10px;
+            width: 20px;
+            color: #666;
+        }
+
+
+        .divider {
+            height: 1px;
+            background-color: #3d3d3d;
+            margin: 8px 0;
+        }
+
+
+        .show {
+            display: block;
+        }
+
+
+        .language {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .french-text {
+            color: #A0A0A0;
+            font-size: 12px;
+            margin-left: auto;
+        }
+        #teamPriorityTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            color: #333; /* Add this to ensure text is visible */
+        }
+
+
+        #teamPriorityTable th,
+        #teamPriorityTable td {
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+
+
+        #teamPriorityTable th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+
+        #teamPriorityTable td:first-child {
+            text-align: left;
+        }
+
+
+        #teamPriorityTable .total-column {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+
+
+        #teamPriorityTable .total-row {
+            background-color: #f8f9fa;
+        }
+
+
+        #teamPriorityTable tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+
+    </style>
+
+
+    <body>
+        <div class="dashboard-container">
+           
             <details class="how-to-use mb-4">
                 <summary>How to use?</summary>
                 <ul>
@@ -475,110 +1062,40 @@
                     <li>The dashboard auto-refreshes every 5 minutes.</li>
                 </ul>
             </details>
-            
-            <div class="filters-container mb-4">
-                <!-- First row for main filters -->
-                <div class="row g-3 align-items-end mb-3">
-                    <div class="col-md-3">
-                        <label for="assignmentGroupFilter" class="form-label">Assignment Group</label>
-                        <select class="form-select form-select-sm" id="assignmentGroupFilter">
-                            <option value="">All Assignment Groups</option>
-                            <option value="GTS">GTS</option>
-                            <option value="FTS">FTS</option>
-                            <option value="Experts Engine">Experts Engine</option>
-                            <option value="Sourcing 2.0">Sourcing 2.0</option>
-                        </select>
+
+
+            <div class="filters-container">
+                <h5 class="filters-title">Filters</h5>
+                <div class="filters-content">
+                    <div id="filterCriteria" class="filter-criteria">
+                        <!-- Dynamic filter criteria will be added here -->
                     </div>
-                    <div class="col-md-3">
-                        <label for="dateFrom" class="form-label">Date From</label>
-                        <input type="date" class="form-control form-control-sm" id="dateFrom">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="dateTo" class="form-label">Date To</label>
-                        <input type="date" class="form-control form-control-sm" id="dateTo">
-                    </div>
-                    <div class="col-md-3 d-flex justify-content-start">
-                        <button class="btn btn-primary btn-sm me-2" id="applyFilters">Apply Filters</button>
-                        <button class="btn btn-secondary btn-sm" id="resetFilters">Reset</button>
-                    </div>
-                </div>
-            
-                <!-- Second row for custom filters -->
-                <div class="row g-3 align-items-end custom-filter-row">
-                    <div class="col-md-3">
-                        <label for="columnFilter" class="form-label">Filter Column</label>
-                        <select class="form-select form-select-sm" id="columnFilter">
-                            <option value="">Select Column</option>
-                            <option value="number">Number</option>
-                            <option value="short_description">Description</option>
-                            <option value="caller">Caller</option>
-                            <option value="assigned_to">Assigned To</option>
-                            <option value="status">Status</option>
-                            <option value="priority">Priority</option>
-                            <option value="category">Category</option>
-                            <option value="assignment_group">Assignment Group</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="filterOperator" class="form-label">Operator</label>
-                        <select class="form-select form-select-sm" id="filterOperator">
-                            <option value="contains">Contains</option>
-                            <option value="equals">Equals</option>
-                            <option value="startsWith">Starts with</option>
-                            <option value="endsWith">Ends with</option>
-                        </select>
-                    </div>
-                    <div class="col-md-5">
-                        <label for="filterValue" class="form-label">Filter Value</label>
-                        <input type="text" class="form-control form-control-sm" id="filterValue" placeholder="Enter value">
-                    </div>
-                    <div class="col-md-2 d-flex justify-content-start">
-                        <button class="btn btn-primary btn-sm me-2" id="applyCustomFilter">Apply</button>
-                        <button class="btn btn-secondary btn-sm" id="clearCustomFilter">Clear</button>
+                    <div class="filter-actions">
+                        <button id="addFilter" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-plus"></i> Add Filter
+                        </button>
+                        <button id="applyFilters" class="btn btn-primary btn-sm">
+                            <i class="fas fa-check"></i> Apply Filters
+                        </button>
+                        <button id="resetFilters" class="btn btn-outline-danger btn-sm">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
                     </div>
                 </div>
             </div>
+
 
             <div id="loading" style="display: none;">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
-
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th class="sortable" data-sort="number">Number</th>
-                            <th class="sortable" data-sort="short_description">Short Description</th>
-                            <th class="sortable" data-sort="created_on">Created</th>
-                            <th class="sortable" data-sort="caller">Caller</th>
-                            <th class="sortable" data-sort="assigned_to">Assigned To</th>
-                            <th class="sortable" data-sort="status">Status</th>
-                            <th class="sortable" data-sort="priority">Priority</th>
-                            <th class="sortable" data-sort="category">Category</th>
-                            <th class="sortable" data-sort="assignment_group">Assignment Group</th>
-                            <th class="sortable" data-sort="resolved_at">Resolved</th>
-                            <th class="sortable" data-sort="time_spent">Total Time Spent</th>
-                        </tr>
-                    </thead>
-                    <tbody id="incidentTableBody">
-                        <!-- Incidents will be populated here -->
-                    </tbody>
-                </table>
-            </div>
-            <nav aria-label="Incident pagination">
-                <ul id="pagination" class="pagination justify-content-center">
-                    <!-- Pagination will be populated here -->
-                </ul>
-            </nav>
-
-
+           
             <div class="row mt-4">
                 <div class="col-md-6">
                     <div class="chart-section">
                         <h5 class="mb-3">Issue Count by Priority</h5>
-                        <div id="chartContainer" class="chart-container">
+                        <div id="chartContainer" style="height: 400px; position: relative;">
                             <canvas id="priorityChart"></canvas>
                         </div>
                     </div>
@@ -607,7 +1124,34 @@
                     </div>
                 </div>
             </div>
-            
+           
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="team-section">
+                        <h5>Open Issues by Team and Priority</h5>
+                        <div class="table-responsive">
+                            <table id="teamPriorityTable" class="team-priority-table">
+                                <thead>
+                                    <tr>
+                                        <th>Team/Assignment Group</th>
+                                        <th class="text-center">Critical</th>
+                                        <th class="text-center">High</th>
+                                        <th class="text-center">Moderate</th>
+                                        <th class="text-center">Low</th>
+                                        <th class="text-center">Planning</th>
+                                        <th class="text-center">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
             <div class="row mt-4">
                 <div class="col-md-6">
                     <div class="category-section">
@@ -625,15 +1169,66 @@
                                 </tbody>
                             </table>
                         </div>
-                        <nav aria-label="Category details pagination">
-                            <ul id="categoryPagination" class="pagination justify-content-center">
-                            </ul>
-                        </nav>
                     </div>
                 </div>
             </div>
 
 
-    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
-</body>
+            <div class="table-responsive">
+                <table class="table table-hover table-striped" id="incidentTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="number">Number</th>
+                            <th class="sortable" data-sort="short_description">Short Description</th>
+                            <th class="sortable" data-sort="created_on">Created</th>
+                            <th class="sortable" data-sort="caller">Caller</th>
+                            <th class="sortable" data-sort="assigned_to">Assigned To</th>
+                            <th class="sortable" data-sort="status">Status</th>
+                            <th class="sortable" data-sort="priority">Priority</th>
+                            <th class="sortable" data-sort="category">Category</th>
+                            <th class="sortable" data-sort="assignment_group">Assignment Group</th>
+                            <th class="sortable" data-sort="resolved_at">Resolved</th>
+                            <th class="sortable" data-sort="time_spent">Total Time Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incidentTableBody">
+                        <!-- Rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+
+            <nav aria-label="Incident pagination">
+                <ul id="pagination" class="pagination justify-content-center">
+                    <!-- Pagination will be populated here -->
+                </ul>
+            </nav>
+
+
+
+
+
+
+
+
+            <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+
+
+            <script>
+        function toggleDropdown() {
+            const dropdown = document.getElementById('profileDropdown');
+            dropdown.classList.toggle('show');
+
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const isClickInside = event.target.closest('.user-profile-container');
+                if (!isClickInside && dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            }, { once: true });
+        }
+    </script>
+        </body>
 </html>
+
