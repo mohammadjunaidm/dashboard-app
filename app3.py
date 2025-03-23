@@ -1,20 +1,67 @@
 # This script is for dashboard with port 5003
 
-from flask import Flask, request, jsonify, render_template, url_for
+
+from flask import Flask, request, jsonify, render_template, url_for, send_from_directory, session, redirect
+from flask_cors import CORS
+from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
+from functools import wraps
+from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import traceback
 import os
 import requests
 import uuid
-from datetime import datetime
 import requests
 import logging
 import urllib.parse
 import traceback
-from datetime import datetime, timezone
+import jwt
 
 
+
+
+# Then, define template directory
+template_dir = os.path.abspath('C:/Flask/templates')
+
+
+# Then, create Flask app
+app = Flask(__name__, template_folder=template_dir)
+app.secret_key = 'your-super-secret-key-12345-67890-09876'
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+CORS(app)
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=1800  # 30 minutes
+)
+
+# Auth0 Configuration
+AUTH0_CLIENT_ID = 'wrVVZdf7Avpsg8S5AnrCMpmrNaeB7Dhq'
+AUTH0_CLIENT_SECRET = 'XD2hB0H-US47Gs7mli_pgnQSkT7Ycv6GsZJJO0UjoHx8smuLPHRmD3iTTUbGQ3yz'
+AUTH0_DOMAIN = 'dev-dqfud7cqdl5fv3tm.us.auth0.com'
+
+
+
+
+oauth = OAuth(app)
+auth0 = oauth.register(
+    'auth0',
+    client_id=AUTH0_CLIENT_ID,
+    client_secret=AUTH0_CLIENT_SECRET,
+    api_base_url=f'https://{AUTH0_DOMAIN}',
+    access_token_url=f'https://{AUTH0_DOMAIN}/oauth/token',
+    authorize_url=f'https://{AUTH0_DOMAIN}/authorize',
+    client_kwargs={
+        'scope': 'openid profile email',
+        'audience': f'https://{AUTH0_DOMAIN}/userinfo'
+    },
+    server_metadata_url=f'https://{AUTH0_DOMAIN}/.well-known/openid-configuration'
+)
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
@@ -37,10 +84,73 @@ GOOGLE_CHAT_WEBHOOK = "https://chat.googleapis.com/v1/spaces/AAAAYs9cl9I/message
 SLACK_WEBHOOK = "https://hooks.slack.com/services/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"
 
 
+
+
 # Ensure the template folder path is correct
 template_dir = os.path.abspath('C:/Flask/templates')
-app = Flask(__name__, static_folder='static', template_folder='templates')
 
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user' not in session:
+            # Clear any existing session data
+            session.clear()
+            # Store the intended destination
+            session['next'] = request.url
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/login")
+def login():
+    if 'user' in session:
+        return redirect(url_for('dashboard'))
+    return auth0.authorize_redirect(
+        redirect_uri=url_for('callback', _external=True, _scheme='https')
+    )
+
+
+@app.route("/callback")
+def callback():
+    try:
+        token = auth0.authorize_access_token()
+        resp = auth0.get('userinfo')
+        userinfo = resp.json()
+        session['jwt_payload'] = userinfo
+        session['user'] = {
+            'user_id': userinfo['sub'],
+            'name': userinfo.get('name', ''),
+            'email': userinfo.get('email', ''),
+            'picture': userinfo.get('picture', '')
+        }
+        # Get the next URL from session or default to dashboard
+        next_url = session.get('next', url_for('dashboard'))
+        # Remove the next URL from session
+        session.pop('next', None)
+        return redirect(next_url)
+    except Exception as e:
+        logger.error(f"Error in callback: {str(e)}")
+        return redirect(url_for('login'))
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    params = {
+        'returnTo': url_for('root', _external=True, _scheme='https'),
+        'client_id': AUTH0_CLIENT_ID
+    }
+    return redirect(auth0.api_base_url + '/v2/logout?' + urllib.parse.urlencode(params))
+
+
+@app.route('/logout/backchannel', methods=['POST'])
+def backchannel_logout():
+    # Implement your logout logic here
+    # This might include clearing the user's session, revoking tokens, etc.
+    logger.info("Back-channel logout request received")
+    return '', 200
 
 
 def get_assignment_group_sys_id(group_name):
@@ -48,6 +158,8 @@ def get_assignment_group_sys_id(group_name):
     if not group_name:
         logger.warning("No group name provided")
         return None
+
+
 
 
     try:
@@ -69,6 +181,8 @@ def get_assignment_group_sys_id(group_name):
         }
 
 
+
+
         logger.info(f"Fetching assignment group for: {group_name}")
        
         response = requests.get(
@@ -80,6 +194,8 @@ def get_assignment_group_sys_id(group_name):
         )
 
 
+
+
         # Log the full request details for debugging
         logger.debug(f"Request URL: {response.url}")
         logger.debug(f"Request Headers: {headers}")
@@ -87,11 +203,15 @@ def get_assignment_group_sys_id(group_name):
         logger.debug(f"Response Content: {response.text}")
 
 
+
+
         # Check response status
         if response.status_code != 200:
             logger.error(f"ServiceNow API error: Status {response.status_code}")
             logger.error(f"Response: {response.text}")
             return None
+
+
 
 
         # Parse response
@@ -115,8 +235,12 @@ def get_assignment_group_sys_id(group_name):
                 return None
 
 
+
+
             logger.info(f"Successfully found sys_id for group '{group_name}': {sys_id}")
             return sys_id
+
+
 
 
         except json.JSONDecodeError as e:
@@ -128,6 +252,8 @@ def get_assignment_group_sys_id(group_name):
             logger.error(f"Error processing response: {str(e)}")
             logger.error(traceback.format_exc())
             return None
+
+
 
 
     except requests.exceptions.Timeout:
@@ -145,6 +271,8 @@ def get_assignment_group_sys_id(group_name):
         return None
 
 
+
+
 def create_servicenow_incident(incident_data):
     """Create an incident in ServiceNow using REST API"""
     url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
@@ -153,6 +281,8 @@ def create_servicenow_incident(incident_data):
         "Content-Type": "application/json",
         "Accept": "application/json"
     }
+
+
 
 
     # Get assignment group sys_id if provided
@@ -195,6 +325,14 @@ def create_servicenow_incident(incident_data):
     except Exception as e:
         logger.error(f"Error creating incident: {str(e)}")
         return None, f"Error creating incident: {str(e)}"
+
+
+
+
+
+
+
+
 
 
 
@@ -261,6 +399,14 @@ def send_google_chat_notification(incident_number, incident_data):
         logger.error(f"Failed to send Google Chat notification. Status: {response.status_code}, Response: {response.text}")
     else:
         logger.info(f"Successfully sent Google Chat notification for incident: {incident_number}")
+
+
+
+
+
+
+
+
 
 
 
@@ -348,6 +494,28 @@ def send_slack_notification(incident_number, incident_data):
 
 
 
+@app.route("/dashboard")
+@requires_auth
+def dashboard():
+    """
+    Protected dashboard route that requires authentication
+    """
+    try:
+        logger.info("Serving dashboard")
+        user_info = session.get('user', {})
+        return render_template(
+            "dashboard.html",
+            user=user_info
+        )
+    except Exception as e:
+        logger.error(f"Error serving dashboard: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+
+
+
+
 
 
 @app.route("/submit", methods=["POST"])
@@ -416,23 +584,16 @@ def submit_incident():
 
 
 
-@app.route("/", methods=["GET", "POST"])
+
+
+   
+
+
+@app.route("/", methods=["GET"])
 def root():
-    """Handles root endpoint"""
-    try:
-        if request.method == "POST":
-            logger.info("POST request received at root endpoint")
-            return jsonify({"message": "POST request received but not handled here."}), 200
-        
-        logger.info("GET request received at root endpoint - redirecting to dashboard")
-        return render_template("dashboard.html")
-    except Exception as e:
-        logger.error(f"Error in root route: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-
-
-
+    # Clear any existing session data when hitting the root
+    session.clear()
+    return redirect(url_for('login'))
 
 
 
@@ -454,9 +615,6 @@ def serve_incident_form():
 
 
 
-@app.route("/dashboard")
-def dashboard():
-    return render_template("dashboard.html")
 
 
 
@@ -471,13 +629,17 @@ def google_chat_webhook():
         return jsonify({"status": "healthy"}), 200
 
 
+
+
     try:
         data = request.json
         logger.info(f"Received request: {json.dumps(data, indent=2)}")
 
+
         if not data or "message" not in data:
             logger.error("Invalid request format")
             return jsonify({"text": "Invalid request format."}), 400
+
 
         message_text = data["message"].get("text", "").lower()
        
@@ -519,18 +681,27 @@ def google_chat_webhook():
             return jsonify(response_data), 200
 
 
+
+
     except Exception as e:
         logger.error(f"Error in webhook: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"text": "I'm here! But encountered an error. Please try again."}), 200
 
 
+
+
 @app.route("/api/incidents")
+@requires_auth
 def get_incidents():
+
+
 
 
     assignment_group = request.args.get('assignment_group', '')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
+
+
 
 
     url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
@@ -540,18 +711,26 @@ def get_incidents():
     }
 
 
+
+
     # Build query
     query_parts = []
     if assignment_group:
         query_parts.append(f"assignment_group.name={assignment_group}")
 
 
+
+
     if date_from:
         query_parts.append(f"sys_created_onGE{date_from}")
 
 
+
+
     if date_to:
         query_parts.append(f"sys_created_onLE{date_to}")
+
+
 
 
     base_query = "ORDERBYDESCsys_created_on"
@@ -564,6 +743,8 @@ def get_incidents():
         "sysparm_display_value": "true",
         "sysparm_query": base_query
     }
+
+
 
 
     try:
@@ -589,6 +770,8 @@ def get_incidents():
             }
 
 
+
+
             # Map priority numbers to readable values
             priority_map = {
                 "1": "1 - Critical",
@@ -599,10 +782,14 @@ def get_incidents():
             }
 
 
+
+
        
            
             for incident in incidents:
                 try:
+
+
 
 
                    # Handle caller_id
@@ -611,10 +798,16 @@ def get_incidents():
                       caller = caller.get('display_value', 'Unknown')
 
 
+
+
                     # Handle assigned_to
                     assigned_to = incident.get('assigned_to', {})
                     if isinstance(assigned_to, dict):
                        assigned_to = assigned_to.get('display_value', 'Unassigned')
+
+
+
+
 
 
 
@@ -631,9 +824,15 @@ def get_incidents():
 
 
 
+
+
+
+
                     # Handle dates and calculate time spent
                     sys_created_on = incident.get('sys_created_on', '')
                     resolved_at = incident.get('resolved_at', '')
+
+
 
 
                     # Parse dates
@@ -646,6 +845,8 @@ def get_incidents():
                             time_spent = resolved_date - created_date
                         else:
                             time_spent = datetime.now() - created_date
+
+
 
 
                     # Format time spent
@@ -665,9 +866,13 @@ def get_incidents():
                         time_spent_str = 'Unknown'
 
 
+
+
                     # Get priority value and map it
                     priority_value = str(incident.get('priority', ''))
                     priority_display = priority_map.get(priority_value, f"{priority_value} - Unknown")
+
+
 
 
                     formatted_incidents.append({
@@ -689,6 +894,8 @@ def get_incidents():
                     continue
 
 
+
+
             # Add debug logging
             logger.debug(f"Formatted {len(formatted_incidents)} incidents")
             logger.debug(f"Sample incident: {formatted_incidents[0] if formatted_incidents else 'No incidents'}")
@@ -705,6 +912,10 @@ def get_incidents():
 
 
 
+
+
+
+
 def extract_display_value(field):
     """Helper function to extract display value from ServiceNow fields"""
     if isinstance(field, dict):
@@ -716,10 +927,18 @@ def extract_display_value(field):
 
 
 
+
+
+
+
 def parse_servicenow_date(date_string):
     if not date_string:
         return None
     return datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+
+
+
+
 
 
 
@@ -742,6 +961,10 @@ def format_time_spent(time_delta):
 
 
 
+
+
+
+
 def formatDate(dateString):
     """Format date string to readable format"""
     if not dateString:
@@ -753,15 +976,17 @@ def formatDate(dateString):
         return dateString
 
 
+
+
 @app.route("/health", methods=["GET"])
 def health_check():
     """Simple health check endpoint"""
     return jsonify({"status": "healthy"}), 200
 
 
+
+
 if __name__ == "__main__":
     logger.info("Starting Flask application...")
     app.run(debug=True, host="0.0.0.0", port=5003)
-
-
 
