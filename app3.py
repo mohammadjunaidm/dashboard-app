@@ -2,6 +2,7 @@
 
 
 from flask import Flask, request, jsonify, render_template, url_for, send_from_directory, session, redirect
+from datetime import timedelta
 from flask_cors import CORS
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
@@ -30,14 +31,13 @@ template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templat
 # Then, create Flask app
 app = Flask(__name__, template_folder=template_dir)
 app.secret_key = 'your-super-secret-key-12345-67890-09876'
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['PREFERRED_URL_SCHEME'] = 'https'
-CORS(app)
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=1800  # 30 minutes
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=1),
+    SESSION_TYPE='filesystem',
+    SESSION_PERMANENT=True
 )
 
 # Auth0 Configuration
@@ -84,31 +84,51 @@ GOOGLE_CHAT_WEBHOOK = "https://chat.googleapis.com/v1/spaces/AAAAYs9cl9I/message
 SLACK_WEBHOOK = "https://hooks.slack.com/services/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"
 
 
-
-
-# Ensure the template folder path is correct
-template_dir = os.path.abspath('C:/Flask/templates')
-
-
 def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if 'user' not in session:
-            # Clear any existing session data
+        try:
+            if 'user' not in session:
+                logger.info("No user in session, redirecting to login")
+                # Clear any existing session data
+                session.clear()
+                # Store the intended destination
+                session['next'] = request.url
+                return redirect(url_for('login'))
+            
+            # Verify that we have valid user data
+            user_info = session.get('user')
+            if not user_info or not user_info.get('user_id'):
+                logger.error("Invalid user data in session")
+                session.clear()
+                return redirect(url_for('login'))
+                
+            logger.info(f"Authenticated user: {user_info.get('email')}")
+            return f(*args, **kwargs)
+            
+        except Exception as e:
+            logger.error(f"Authentication error: {str(e)}")
             session.clear()
-            # Store the intended destination
-            session['next'] = request.url
             return redirect(url_for('login'))
-        return f(*args, **kwargs)
     return decorated
 
 
 @app.route("/login")
 def login():
-    if 'user' in session:
-        return redirect(url_for('dashboard'))
-    return auth0.authorize_redirect(
-        redirect_uri=url_for('callback', _external=True, _scheme='https')
+    try:
+        # Check if user is already authenticated
+        if 'user' in session and session['user'].get('user_id'):
+            logger.info("User already authenticated, redirecting to dashboard")
+            return redirect(url_for('dashboard'))
+            
+        logger.info("Initiating Auth0 login flow")
+        return auth0.authorize_redirect(
+            redirect_uri=url_for('callback', _external=True, _scheme='https')
+        )
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        session.clear()
+        return render_template('error.html', error="Login system temporarily unavailable"), 500
     )
 
 
@@ -598,11 +618,15 @@ def submit_incident():
    
 
 
-@app.route("/", methods=["GET"])
+@app.route("/")
 def root():
-    # Clear any existing session data when hitting the root
-    session.clear()
-    return redirect(url_for('login'))
+    try:
+        if 'user' in session and session['user'].get('user_id'):
+            return redirect(url_for('dashboard'))
+        return redirect(url_for('login'))
+    except Exception as e:
+        logger.error(f"Root route error: {str(e)}")
+        return redirect(url_for('login'))
 
 
 
