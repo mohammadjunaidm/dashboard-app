@@ -24,7 +24,7 @@ import jwt
 
 
 # Then, define template directory
-template_dir = os.path.abspath('C:/Flask/templates')
+template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 
 
 # Then, create Flask app
@@ -497,19 +497,21 @@ def send_slack_notification(incident_number, incident_data):
 @app.route("/dashboard")
 @requires_auth
 def dashboard():
-    """
-    Protected dashboard route that requires authentication
-    """
     try:
-        logger.info("Serving dashboard")
-        user_info = session.get('user', {})
+        user_info = session.get('user')
+        if not user_info:
+            logger.error("No user info in session")
+            return redirect(url_for('login'))
+            
+        logger.info(f"Serving dashboard for user: {user_info.get('email')}")
         return render_template(
             "dashboard.html",
             user=user_info
         )
     except Exception as e:
-        logger.error(f"Error serving dashboard: {str(e)}\n{traceback.format_exc()}")
-        return jsonify({"error": "Internal server error"}), 500
+        logger.error(f"Dashboard error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return render_template('error.html', error="An error occurred loading the dashboard"), 500
 
 
 
