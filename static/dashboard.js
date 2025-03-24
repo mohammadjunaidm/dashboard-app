@@ -470,7 +470,7 @@ function updatePriorityChart() {
                         position: 'left',
                         labels: {
                             font: {
-                                size: 14
+                                size: 12
                             },
                             generateLabels: function(chart) {
                                 const data = chart.data;
