@@ -1143,19 +1143,18 @@
     <body>
         <body>
     
-        <div class="user-profile-container">
+                <div class="user-profile-container">
             <div class="profile-button" onclick="toggleProfileDropdown()">
                 <div class="avatar">
-                    <!-- You can use the first letter of the user's name -->
-                    <span>U</span>
+                    <span>{{ user.name[0] }}</span>
                 </div>
-                <span class="username">User</span>
+                <span class="username">{{ user.name }}</span>
                 <i class="fas fa-chevron-down"></i>
             </div>
             <div class="profile-dropdown" id="profileDropdown">
                 <div class="dropdown-header">
                     <div class="user-info">
-                        <div class="email">user@example.com</div>
+                        <div class="email">{{ user.email }}</div>
                     </div>
                 </div>
                 <div class="dropdown-divider"></div>
