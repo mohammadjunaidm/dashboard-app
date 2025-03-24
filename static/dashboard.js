@@ -787,10 +787,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.sortable').forEach(th =>
         th.addEventListener('click', () => sortTable(th.dataset.sort))
     );
-     // Add event listeners for main filters
+
+    // Add event listeners for main filters
     document.getElementById('applyMainFilters')?.addEventListener('click', applyFilters);
     document.getElementById('resetMainFilters')?.addEventListener('click', resetMainFilters);
-});
+
     // Filter-related event listeners
     document.getElementById('addFilter')?.addEventListener('click', addFilterCriteria);
     document.getElementById('applyFilters')?.addEventListener('click', applyFilters);
