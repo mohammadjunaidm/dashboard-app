@@ -92,8 +92,8 @@
 
 
         .table-responsive {
-            overflow-x: auto;
-            max-width: 100%;
+            height: calc(100% - 40px); /* Subtract the height of the header */
+            overflow-y: auto;
         }
         #incidentTable {
             width: 100%;
@@ -161,9 +161,7 @@
             margin-top: 10px;
         }
         .table {
-            font-size: 13px;
-            margin-bottom: 10px;
-            border: 1px solid #dee2e6;
+            margin-bottom: 0;
         }
         .table th {
             background-color: #f8f9fa;
@@ -405,7 +403,7 @@
             border-right: 2px solid #ddd;
             cursor: col-resize;
         }
-        .chart-section, .developer-section {
+        .chart-section, {
             height: 400px;
             display: flex;
             flex-direction: column;
@@ -422,10 +420,7 @@
             align-items: center;
             margin: 0 auto;
         }
-        .developer-section .table-responsive {
-            flex-grow: 1;
-            overflow-y: auto;
-        }
+
 
         .chart-container {
             position: relative;
@@ -663,23 +658,14 @@
         }
 
 
-        .team-section {
+        .developer-section, .team-section {
             background: white;
             border: 1px solid #dee2e6;
             border-radius: 4px;
             padding: 20px;
+            height: 400px; /* Set equal height for both sections */
             margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            height: auto; /* Remove fixed height */
         }
-
-
-        .team-section h5 {
-            margin-bottom: 15px;
-            color: #333;
-            font-weight: 600;
-        }
-
 
         .user-profile-container {
             position: fixed;
@@ -1041,9 +1027,21 @@
         }
         #teamPriorityTable {
             width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            color: #333; /* Add this to ensure text is visible */
+        }
+        .table thead th {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+
+        #developerPagination {
+            display: none;
+        }
+        .developer-section h5, .team-section h5 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 600;
         }
 
 
@@ -1199,55 +1197,50 @@
                             </div>
                         </div>
                     </div>
-                <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="developer-section">
-                        <h5 class="mb-3">Developer wise details</h5>
-                        <div class="table-responsive">
-                            <table class="table table-hover" id="developerDetailsTable">
-                                <thead>
-                                    <tr>
-                                        <th>Assignee</th>
-                                        <th>Count</th>
-                                        <th>Avg Resolution Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="developerTableBody">
-                                    <!-- Developer data will be populated here -->
-                                </tbody>
-                            </table>
+                    <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="developer-section">
+                                    <h5 class="mb-3">Developer wise details</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="developerDetailsTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Assignee</th>
+                                                    <th>Count</th>
+                                                    <th>Avg Resolution Time</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="developerTableBody">
+                                                <!-- Developer data will be populated here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="team-section">
+                                    <h5 class="mb-3">Open Issues by Team and Priority</h5>
+                                    <div class="table-responsive">
+                                        <table id="teamPriorityTable" class="team-priority-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Team/Assignment Group</th>
+                                                    <th>Critical</th>
+                                                    <th>High</th>
+                                                    <th>Moderate</th>
+                                                    <th>Low</th>
+                                                    <th>Planning</th>
+                                                    <th>Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Dynamic data will be populated here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <nav aria-label="Developer details pagination">
-                            <ul id="developerPagination" class="pagination justify-content-center">
-                            </ul>
-                        </nav>
-                    </div>
-                </div>
-            </div>
-           
-                <div class="col-md-6">
-                    <div class="team-section">
-                        <h5>Open Issues by Team and Priority</h5>
-                        <div class="table-responsive">
-                            <table id="teamPriorityTable" class="team-priority-table">
-                                <thead>
-                                    <tr>
-                                        <th>Team/Assignment Group</th>
-                                        <th>Critical</th>
-                                        <th>High</th>
-                                        <th>Moderate</th>
-                                        <th>Low</th>
-                                        <th>Planning</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Dynamic data will be populated here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
                 
             
             <div class="logout-container">
