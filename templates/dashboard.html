@@ -415,12 +415,13 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
             padding: 20px;
-            height: 500px;
-            display: flex;
-            flex-direction: column;
+            height: auto;
             margin-bottom: 20px;
         }
-
+        #chartContainer {
+            max-width: 300px;
+            margin: 0 auto;
+        }
 
         .chart-container {
             position: relative;
@@ -430,15 +431,14 @@
 
 
         .table-responsive {
-            height: 300px;
-            overflow-y: auto;
+            max-height: none;
+            overflow-y: visible;
         }
 
 
         #developerDetailsTable {
-            margin-bottom: 0;
+            font-size: 12px;
         }
-
 
         #developerDetailsTable thead th {
             position: sticky;
@@ -1167,11 +1167,11 @@
                 </ul>
             </nav>
            
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="chart-section">
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="chart-section">
                         <h5 class="mb-3">Issue Count by Priority</h5>
-                        <div id="chartContainer" style="height: 400px; position: relative;">
+                        <div id="chartContainer" style="height: 300px; position: relative;">
                             <canvas id="priorityChart"></canvas>
                         </div>
                     </div>
