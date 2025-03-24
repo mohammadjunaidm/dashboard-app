@@ -231,38 +231,25 @@ function updateOperators(fieldSelect) {
 
 function applyFilters() {
     try {
-        const assignmentGroup = document.getElementById('assignmentGroupDropdown')?.value;
-        const dateFrom = document.getElementById('dateFrom')?.value ? new Date(document.getElementById('dateFrom').value) : null;
-        const dateTo = document.getElementById('dateTo')?.value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
+        const assignmentGroupDropdown = document.getElementById('assignmentGroupDropdown');
+        const dateFrom = document.getElementById('dateFrom');
+        const dateTo = document.getElementById('dateTo');
 
-        // Get custom filters
-        const customFilters = [];
-        document.querySelectorAll('.filter-criterion').forEach(criterion => {
-            const field = criterion.querySelector('.filter-field')?.value;
-            const operator = criterion.querySelector('.filter-operator')?.value;
-            const value = criterion.querySelector('.filter-value')?.value;
-            if (field && operator && value) {
-                customFilters.push({ field, operator, value });
-            }
-        });
+        const assignmentGroup = assignmentGroupDropdown ? assignmentGroupDropdown.value : '';
+        const fromDate = dateFrom && dateFrom.value ? new Date(dateFrom.value) : null;
+        const toDate = dateTo && dateTo.value ? new Date(dateTo.value + 'T23:59:59') : null;
 
-        // Apply all filters
+        // Apply filters
         filteredIncidents = incidents.filter(incident => {
-            // Check assignment group filter
+            // Assignment group filter
             const matchesGroup = !assignmentGroup || incident.assignment_group === assignmentGroup;
 
-            // Check date range
+            // Date range filter
             const incidentDate = new Date(incident.created_on);
-            const matchesDateRange = (!dateFrom || incidentDate >= dateFrom) &&
-                                   (!dateTo || incidentDate <= dateTo);
+            const matchesDateRange = (!fromDate || incidentDate >= fromDate) &&
+                                   (!toDate || incidentDate <= toDate);
 
-            // Check custom filters
-            const matchesCustomFilters = customFilters.every(filter => {
-                // ... existing custom filter logic ...
-            });
-
-            // Return true only if all filter conditions are met
-            return matchesGroup && matchesDateRange && matchesCustomFilters;
+            return matchesGroup && matchesDateRange;
         });
 
         // Update display
@@ -763,60 +750,27 @@ function resetFilters() {
 }
 
 
-// Initialize when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-    const assignmentGroupDropdown = document.getElementById('assignmentGroupDropdown');
-    const dateFrom = document.getElementById('dateFrom');
-    const dateTo = document.getElementById('dateTo');
-
-    if (assignmentGroupDropdown) {
-        assignmentGroupDropdown.addEventListener('change', debounce(applyFilters, 300));
-    }
-
-    if (dateFrom) {
-        dateFrom.addEventListener('change', debounce(applyFilters, 300));
-    }
-
-    if (dateTo) {
-        dateTo.addEventListener('change', debounce(applyFilters, 300));
-    }
-});
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
+document.addEventListener('DOMContentLoaded', () => {
+    // Initial setup
+    initializeHowToUse();
+   
+    // Initial data fetch
+    fetchIncidents().then(() => {
+        updateDisplay();
+    }).catch(error => {
+        console.error('Error fetching incidents:', error);
+    });
 
     // Event listeners
     document.querySelectorAll('.sortable').forEach(th =>
         th.addEventListener('click', () => sortTable(th.dataset.sort))
     );
 
-
     // Filter-related event listeners
     document.getElementById('addFilter')?.addEventListener('click', addFilterCriteria);
-    document.getElementById('filterCriteria')?.addEventListener('change', (e) => {
-        if (e.target.classList.contains('filter-field')) {
-            updateOperators(e.target);
-        }
-    });
     document.getElementById('applyFilters')?.addEventListener('click', applyFilters);
     document.getElementById('resetFilters')?.addEventListener('click', resetFilters);
-    document.getElementById('filterCriteria')?.addEventListener('click', (e) => {
-        if (e.target.classList.contains('remove-filter')) {
-            e.target.closest('.filter-criterion').remove();
-        }
-    });
-
-
+    
     // Auto refresh every 5 minutes
     setInterval(fetchIncidents, 300000);
 });
