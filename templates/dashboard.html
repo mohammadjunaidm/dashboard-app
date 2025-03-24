@@ -1121,8 +1121,30 @@
                 </ul>
             </details>
 
-
-            <div class="filters-container">
+     <div class="filters-container">
+            <h5 class="filters-title">Filters</h5>
+        <div class="row mb-3">
+        <!-- Assignment Group Dropdown -->
+        <div class="col-md-3">
+            <label class="form-label">Assignment Group</label>
+            <select class="form-select form-select-sm" id="assignmentGroupDropdown">
+                <option value="">All Groups</option>
+                <option value="GTS">GTS</option>
+                <option value="FTS">FTS</option>
+                <option value="Experts engine">Experts engine</option>
+                <option value="Sourcing 2.0">Sourcing 2.0</option>
+            </select>
+        </div>
+        <!-- Date Range Filters -->
+        <div class="col-md-3">
+            <label class="form-label">Date From</label>
+            <input type="date" class="form-control form-control-sm" id="dateFrom">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Date To</label>
+            <input type="date" class="form-control form-control-sm" id="dateTo">
+        </div>
+    </div>
                 <h5 class="filters-title">Filters</h5>
                 <div class="filters-content">
                     <div id="filterCriteria" class="filter-criteria">
