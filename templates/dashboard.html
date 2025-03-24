@@ -1137,6 +1137,35 @@
                     <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-striped" id="incidentTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="number">Number</th>
+                            <th class="sortable" data-sort="short_description">Short Description</th>
+                            <th class="sortable" data-sort="created_on">Created</th>
+                            <th class="sortable" data-sort="caller">Caller</th>
+                            <th class="sortable" data-sort="assigned_to">Assigned To</th>
+                            <th class="sortable" data-sort="status">Status</th>
+                            <th class="sortable" data-sort="priority">Priority</th>
+                            <th class="sortable" data-sort="category">Category</th>
+                            <th class="sortable" data-sort="assignment_group">Assignment Group</th>
+                            <th class="sortable" data-sort="resolved_at">Resolved</th>
+                            <th class="sortable" data-sort="time_spent">Total Time Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incidentTableBody">
+                        <!-- Rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+             <nav aria-label="Incident pagination">
+                <ul id="pagination" class="pagination justify-content-center">
+                    <!-- Pagination will be populated here -->
+                </ul>
+            </nav>
            
             <div class="row mt-4">
                 <div class="col-md-6">
@@ -1219,40 +1248,13 @@
                     </div>
                 </div>
             </div>
-
-
-            <div class="table-responsive">
-                <table class="table table-hover table-striped" id="incidentTable">
-                    <thead>
-                        <tr>
-                            <th class="sortable" data-sort="number">Number</th>
-                            <th class="sortable" data-sort="short_description">Short Description</th>
-                            <th class="sortable" data-sort="created_on">Created</th>
-                            <th class="sortable" data-sort="caller">Caller</th>
-                            <th class="sortable" data-sort="assigned_to">Assigned To</th>
-                            <th class="sortable" data-sort="status">Status</th>
-                            <th class="sortable" data-sort="priority">Priority</th>
-                            <th class="sortable" data-sort="category">Category</th>
-                            <th class="sortable" data-sort="assignment_group">Assignment Group</th>
-                            <th class="sortable" data-sort="resolved_at">Resolved</th>
-                            <th class="sortable" data-sort="time_spent">Total Time Spent</th>
-                        </tr>
-                    </thead>
-                    <tbody id="incidentTableBody">
-                        <!-- Rows will be populated here -->
-                    </tbody>
-                </table>
-            </div>
+            
             <div class="logout-container">
                 <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
             </div>
 
 
-            <nav aria-label="Incident pagination">
-                <ul id="pagination" class="pagination justify-content-center">
-                    <!-- Pagination will be populated here -->
-                </ul>
-            </nav>
+           
 
 
 
