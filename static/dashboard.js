@@ -231,25 +231,54 @@ function updateOperators(fieldSelect) {
 
 function applyFilters() {
     try {
-        const assignmentGroupDropdown = document.getElementById('assignmentGroupDropdown');
-        const dateFrom = document.getElementById('dateFrom');
-        const dateTo = document.getElementById('dateTo');
+        // Get main filters (Assignment Group and Date Range)
+        const assignmentGroup = document.getElementById('assignmentGroupDropdown')?.value;
+        const dateFrom = document.getElementById('dateFrom')?.value ? new Date(document.getElementById('dateFrom').value) : null;
+        const dateTo = document.getElementById('dateTo')?.value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
 
-        const assignmentGroup = assignmentGroupDropdown ? assignmentGroupDropdown.value : '';
-        const fromDate = dateFrom && dateFrom.value ? new Date(dateFrom.value) : null;
-        const toDate = dateTo && dateTo.value ? new Date(dateTo.value + 'T23:59:59') : null;
+        // Get custom filters
+        const customFilters = [];
+        document.querySelectorAll('.filter-criterion').forEach(criterion => {
+            const field = criterion.querySelector('.filter-field')?.value;
+            const operator = criterion.querySelector('.filter-operator')?.value;
+            const value = criterion.querySelector('.filter-value')?.value;
+            if (field && operator && value) {
+                customFilters.push({ field, operator, value });
+            }
+        });
 
-        // Apply filters
+        // Apply all filters
         filteredIncidents = incidents.filter(incident => {
-            // Assignment group filter
+            // Check assignment group filter
             const matchesGroup = !assignmentGroup || incident.assignment_group === assignmentGroup;
 
-            // Date range filter
+            // Check date range
             const incidentDate = new Date(incident.created_on);
-            const matchesDateRange = (!fromDate || incidentDate >= fromDate) &&
-                                   (!toDate || incidentDate <= toDate);
+            const matchesDateRange = (!dateFrom || incidentDate >= dateFrom) &&
+                                   (!dateTo || incidentDate <= dateTo);
 
-            return matchesGroup && matchesDateRange;
+            // Check custom filters
+            const matchesCustomFilters = customFilters.every(filter => {
+                const fieldValue = String(incident[filter.field] || '').toLowerCase();
+                const filterValue = filter.value.toLowerCase();
+
+                switch (filter.operator) {
+                    case 'equals':
+                        return fieldValue === filterValue;
+                    case 'not equals':
+                        return fieldValue !== filterValue;
+                    case 'contains':
+                        return fieldValue.includes(filterValue);
+                    case 'starts with':
+                        return fieldValue.startsWith(filterValue);
+                    case 'ends with':
+                        return fieldValue.endsWith(filterValue);
+                    default:
+                        return true;
+                }
+            });
+
+            return matchesGroup && matchesDateRange && matchesCustomFilters;
         });
 
         // Update display
