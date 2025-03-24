@@ -314,7 +314,6 @@ function applyFilters() {
 }
 
 
-// Developer table functions
 function updateDeveloperTable(incidents) {
     const developerStats = calculateDeveloperStats(incidents);
     const tableBody = document.querySelector('#developerDetailsTable tbody');
@@ -323,9 +322,7 @@ function updateDeveloperTable(incidents) {
         return;
     }
 
-
     tableBody.innerHTML = '';
-
 
     developerStats.forEach(dev => {
         const row = document.createElement('tr');
@@ -336,8 +333,13 @@ function updateDeveloperTable(incidents) {
         `;
         tableBody.appendChild(row);
     });
-}
 
+    // Remove any existing pagination for developer table
+    const developerPagination = document.getElementById('developerPagination');
+    if (developerPagination) {
+        developerPagination.innerHTML = '';
+    }
+}
 
 function calculateDeveloperStats(incidents) {
     const developerStats = {};
@@ -470,7 +472,13 @@ function updatePriorityChart() {
                         position: 'left',
                         labels: {
                             font: {
-                                size: 14
+                                size: 12
+                            },
+                            datalabels: {
+                            color: '#fff',
+                            font: {
+                                weight: 'bold',
+                                size: 10  // Smaller font size for better visibility
                             },
                             generateLabels: function(chart) {
                                 const data = chart.data;
