@@ -314,6 +314,7 @@ function applyFilters() {
 }
 
 
+// Developer table functions
 function updateDeveloperTable(incidents) {
     const developerStats = calculateDeveloperStats(incidents);
     const tableBody = document.querySelector('#developerDetailsTable tbody');
@@ -322,7 +323,9 @@ function updateDeveloperTable(incidents) {
         return;
     }
 
+
     tableBody.innerHTML = '';
+
 
     developerStats.forEach(dev => {
         const row = document.createElement('tr');
@@ -333,13 +336,8 @@ function updateDeveloperTable(incidents) {
         `;
         tableBody.appendChild(row);
     });
-
-    // Remove any existing pagination for developer table
-    const developerPagination = document.getElementById('developerPagination');
-    if (developerPagination) {
-        developerPagination.innerHTML = '';
-    }
 }
+
 
 function calculateDeveloperStats(incidents) {
     const developerStats = {};
@@ -462,63 +460,56 @@ function updatePriorityChart() {
 
 
         window.priorityChart = new Chart(ctx, {
-    type: 'pie',
-    data: data,
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'right',
-                labels: {
-                    font: {
-                        size: 12
-                    },
-                    generateLabels: function(chart) {
-                        const data = chart.data;
-                        if (data.labels.length && data.datasets.length) {
-                            return data.labels.map((label, i) => {
-                                const value = data.datasets[0].data[i];
-                                const total = data.datasets[0].data.reduce((acc, val) => acc + val, 0);
-                                const percentage = ((value / total) * 100).toFixed(1);
-                                return {
-                                    text: `${label}: ${value} (${percentage}%)`,
-                                    fillStyle: data.datasets[0].backgroundColor[i],
-                                    hidden: isNaN(value) || value === 0,
-                                    index: i
-                                };
-                            });
+            type: 'pie',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'left',
+                        labels: {
+                            font: {
+                                size: 14
+                            },
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {
+                                    return data.labels.map((label, i) => {
+                                        const value = data.datasets[0].data[i];
+                                        const total = data.datasets[0].data.reduce((acc, val) => acc + val, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return {
+                                            text: `${label}: ${value} (${percentage}%)`,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            hidden: isNaN(value) || value === 0,
+                                            index: i
+                                        };
+                                    });
+                                }
+                                return [];
+                            }
                         }
-                        return [];
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.chart.data.datasets[0].data.reduce((acc, val) => acc + val, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
                     }
                 }
-            },
-            datalabels: {
-                color: '#fff',
-                font: {
-                    weight: 'bold',
-                    size: 10
-                },
-                formatter: (value, ctx) => {
-                    let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                    let percentage = (value * 100 / sum).toFixed(1) + "%";
-                    return percentage;
-                }
             }
-        },
-        tooltip: {
-            callbacks: {
-                label: function(context) {
-                    const label = context.label || '';
-                    const value = context.raw || 0;
-                    const total = context.chart.data.datasets[0].data.reduce((acc, val) => acc + val, 0);
-                    const percentage = ((value / total) * 100).toFixed(1);
-                    return `${label}: ${value} (${percentage}%)`;
-                }
-            }
-        }
+        });
+    } catch (error) {
+        console.error('Error creating chart:', error);
     }
-});
+}
+
 
 function updateTeamPriorityTable(incidents) {
     console.log('Starting updateTeamPriorityTable');
@@ -975,4 +966,3 @@ function updateCategoryPagination(totalItems) {
     // Add pagination elements here...
     // (You can use a similar structure to the main pagination function)
 }
-
