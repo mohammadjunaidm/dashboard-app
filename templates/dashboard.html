@@ -371,11 +371,6 @@
         }
 
 
-        #developerDetailsTable {
-            font-size: 13px;
-        }
-
-
         #developerDetailsTable th,
         #developerDetailsTable td {
             padding: 8px;
@@ -411,16 +406,19 @@
             cursor: col-resize;
         }
         .chart-section, .developer-section {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 20px;
-            height: auto;
-            margin-bottom: 20px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
         }
-        #chartContainer {
-            max-width: 300px;
-            margin: 0 auto;
+        .chart-section #chartContainer {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .developer-section .table-responsive {
+            flex-grow: 1;
+            overflow-y: auto;
         }
 
         .chart-container {
@@ -435,9 +433,8 @@
             overflow-y: visible;
         }
 
-
         #developerDetailsTable {
-            font-size: 12px;
+            width: 100%;
         }
 
         #developerDetailsTable thead th {
@@ -448,7 +445,7 @@
         }
 
 
-        .developer-section .pagination {
+        .pagination {
             margin-top: auto;
             padding-top: 10px;
         }
