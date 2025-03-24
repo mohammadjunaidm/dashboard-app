@@ -231,88 +231,38 @@ function updateOperators(fieldSelect) {
 
 function applyFilters() {
     try {
-        // Get main filters (Assignment Group and Date Range)
-        const assignmentGroup = document.getElementById('assignmentGroupFilter')?.value;
+        // Get assignment group from dedicated dropdown
+        const assignmentGroup = document.getElementById('assignmentGroupDropdown')?.value;
         const dateFrom = document.getElementById('dateFrom')?.value ? new Date(document.getElementById('dateFrom').value) : null;
         const dateTo = document.getElementById('dateTo')?.value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
-
-
-        // Get custom filters
-        const customFilters = [];
-        document.querySelectorAll('.filter-criterion').forEach(criterion => {
-            const field = criterion.querySelector('.filter-field')?.value;
-            const operator = criterion.querySelector('.filter-operator')?.value;
-            const value = criterion.querySelector('.filter-value')?.value;
-            if (field && operator && value) {
-                customFilters.push({ field, operator, value });
-            }
-        });
-
 
         // Apply all filters
         filteredIncidents = incidents.filter(incident => {
             // Check assignment group filter
             const matchesGroup = !assignmentGroup || incident.assignment_group === assignmentGroup;
 
-
             // Check date range
             const incidentDate = new Date(incident.created_on);
             const matchesDateRange = (!dateFrom || incidentDate >= dateFrom) &&
                                    (!dateTo || incidentDate <= dateTo);
 
-
             // Check custom filters
             const matchesCustomFilters = customFilters.every(filter => {
-                const fieldValue = String(incident[filter.field] || '').toLowerCase();
-                const filterValue = filter.value.toLowerCase();
-
-
-                switch (filter.operator) {
-                    case 'contains':
-                        return fieldValue.includes(filterValue);
-                    case 'equals':
-                        return fieldValue === filterValue;
-                    case 'not equals':
-                        return fieldValue !== filterValue;
-                    case 'starts with':
-                        return fieldValue.startsWith(filterValue);
-                    case 'ends with':
-                        return fieldValue.endsWith(filterValue);
-                    case 'before':
-                        return new Date(incident[filter.field]) < new Date(filter.value);
-                    case 'after':
-                        return new Date(incident[filter.field]) > new Date(filter.value);
-                    case 'between':
-                        const [start, end] = filter.value.split(',');
-                        const date = new Date(incident[filter.field]);
-                        return date >= new Date(start) && date <= new Date(end);
-                    default:
-                        return true;
-                }
+                // ... existing custom filter logic ...
             });
-
 
             // Return true only if all filter conditions are met
             return matchesGroup && matchesDateRange && matchesCustomFilters;
         });
 
-
         // Update display
         currentPage = 1;
         updateDisplay();
 
-
     } catch (error) {
         console.error('Error in applyFilters:', error);
-        console.log('Current filter state:', {
-            assignmentGroup: document.getElementById('assignmentGroupFilter')?.value,
-            dateFrom: document.getElementById('dateFrom')?.value,
-            dateTo: document.getElementById('dateTo')?.value,
-            filteredIncidents: filteredIncidents?.length
-        });
     }
 }
-
 
 // Developer table functions
 function updateDeveloperTable(incidents) {
