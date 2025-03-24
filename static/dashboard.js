@@ -467,10 +467,16 @@ function updatePriorityChart() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'left',
+                        position: 'right',
                         labels: {
                             font: {
-                                size: 14
+                                size: 12
+                            },
+                            datalabels: {
+                            color: '#fff',
+                            font: {
+                                weight: 'bold',
+                                size: 10
                             },
                             generateLabels: function(chart) {
                                 const data = chart.data;
