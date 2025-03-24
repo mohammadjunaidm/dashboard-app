@@ -749,6 +749,28 @@ function resetFilters() {
     }
 }
 
+function resetMainFilters() {
+    try {
+        // Reset dropdown
+        const assignmentGroupDropdown = document.getElementById('assignmentGroupDropdown');
+        if (assignmentGroupDropdown) assignmentGroupDropdown.value = '';
+
+        // Reset date inputs
+        const dateFrom = document.getElementById('dateFrom');
+        const dateTo = document.getElementById('dateTo');
+        if (dateFrom) dateFrom.value = '';
+        if (dateTo) dateTo.value = '';
+
+        // Reset to show all incidents
+        filteredIncidents = [...incidents];
+        currentPage = 1;
+        updateDisplay();
+
+    } catch (error) {
+        console.error('Error in resetMainFilters:', error);
+    }
+}
+
 
 document.addEventListener('DOMContentLoaded', () => {
     // Initial setup
@@ -765,7 +787,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.sortable').forEach(th =>
         th.addEventListener('click', () => sortTable(th.dataset.sort))
     );
-
+     // Add event listeners for main filters
+    document.getElementById('applyMainFilters')?.addEventListener('click', applyFilters);
+    document.getElementById('resetMainFilters')?.addEventListener('click', resetMainFilters);
+});
     // Filter-related event listeners
     document.getElementById('addFilter')?.addEventListener('click', addFilterCriteria);
     document.getElementById('applyFilters')?.addEventListener('click', applyFilters);
