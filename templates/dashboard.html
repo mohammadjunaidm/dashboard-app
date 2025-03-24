@@ -410,7 +410,7 @@
             border-right: 2px solid #ddd;
             cursor: col-resize;
         }
-        .chart-section, .developer-section, .category-section {
+        .chart-section, .developer-section {
             background: white;
             border: 1px solid #dee2e6;
             border-radius: 4px;
@@ -457,11 +457,10 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
             padding: 20px;
-            height: 400px;
+            height: auto; /* Remove fixed height */
             display: flex;
             flex-direction: column;
         }
-
 
         .col-md-4 {
             padding: 10px;
@@ -668,6 +667,7 @@
             padding: 20px;
             margin-bottom: 20px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            height: auto; /* Remove fixed height */
         }
 
 
@@ -1202,31 +1202,27 @@
             </div>
            
             <div class="row mt-4">
-                <div class="col-12">
+                <div class="col-md-8">
                     <div class="team-section">
                         <h5>Open Issues by Team and Priority</h5>
                         <div class="table-responsive">
                             <table id="teamPriorityTable" class="team-priority-table">
-                                <thead>
-                                    <tr>
-                                        <th>Team/Assignment Group</th>
-                                        <th class="text-center">Critical</th>
-                                        <th class="text-center">High</th>
-                                        <th class="text-center">Moderate</th>
-                                        <th class="text-center">Low</th>
-                                        <th class="text-center">Planning</th>
-                                        <th class="text-center">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Data will be populated here -->
-                                </tbody>
+                                <!-- ... table content ... -->
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="category-section">
+                        <h5 class="mb-3">Category wise details</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="categoryDetailsTable">
+                                <!-- ... table content ... -->
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
-
 
             <div class="row mt-4">
                 <div class="col-md-6">
