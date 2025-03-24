@@ -1179,6 +1179,27 @@
                         </div>
                     </div>
                 </div>
+
+                    <div class="col-md-6">
+                        <div class="category-section">
+                                <h5>Category wise details</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="categoryDetailsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>Count</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="categoryTableBody">
+                                            <!-- Category data will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <div class="row mt-4">
                 <div class="col-md-6">
                     <div class="developer-section">
                         <h5 class="mb-3">Developer wise details</h5>
@@ -1228,25 +1249,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="category-section">
-                        <h5>Category wise details</h5>
-                        <div class="table-responsive">
-                            <table class="table table-hover" id="categoryDetailsTable">
-                                <thead>
-                                    <tr>
-                                        <th>Type</th>
-                                        <th>Count</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="categoryTableBody">
-                                    <!-- Category data will be populated here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                
             
             <div class="logout-container">
                 <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
