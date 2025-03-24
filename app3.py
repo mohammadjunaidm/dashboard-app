@@ -163,12 +163,22 @@ def callback():
 
 @app.route("/logout")
 def logout():
-    session.clear()
-    params = {
-        'returnTo': url_for('root', _external=True, _scheme='https'),
-        'client_id': AUTH0_CLIENT_ID
-    }
-    return redirect(auth0.api_base_url + '/v2/logout?' + urllib.parse.urlencode(params))
+    try:
+        # Clear the session
+        session.clear()
+        
+        # Construct the Auth0 logout URL
+        params = {
+            'returnTo': url_for('login', _external=True, _scheme='https'),
+            'client_id': AUTH0_CLIENT_ID
+        }
+        logout_url = f'https://{AUTH0_DOMAIN}/v2/logout?{urllib.parse.urlencode(params)}'
+        
+        logger.info("User logged out successfully")
+        return redirect(logout_url)
+    except Exception as e:
+        logger.error(f"Logout error: {str(e)}")
+        return redirect(url_for('login'))
 
 
 @app.route('/logout/backchannel', methods=['POST'])
