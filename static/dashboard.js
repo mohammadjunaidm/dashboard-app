@@ -804,6 +804,7 @@ function resetMainFilters() {
 document.addEventListener('DOMContentLoaded', () => {
     // Initial setup
     initializeHowToUse();
+    initializeAdvancedFilters();
    
     // Initial data fetch
     fetchIncidents().then(() => {
@@ -812,23 +813,44 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error fetching incidents:', error);
     });
 
-    // Event listeners
+    // Event listeners for sortable columns
     document.querySelectorAll('.sortable').forEach(th =>
         th.addEventListener('click', () => sortTable(th.dataset.sort))
     );
 
-    // Add event listeners for main filters
+    // Main filters event listeners
     document.getElementById('applyMainFilters')?.addEventListener('click', applyFilters);
     document.getElementById('resetMainFilters')?.addEventListener('click', resetMainFilters);
 
-    // Filter-related event listeners
+    // Advanced filters event listeners
     document.getElementById('addFilter')?.addEventListener('click', addFilterCriteria);
     document.getElementById('applyFilters')?.addEventListener('click', applyFilters);
     document.getElementById('resetFilters')?.addEventListener('click', resetFilters);
+
+    // Event delegation for remove buttons in advanced filters
+    document.getElementById('filterCriteria')?.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-filter')) {
+            e.target.closest('.filter-criterion').remove();
+        }
+    });
     
     // Auto refresh every 5 minutes
     setInterval(fetchIncidents, 300000);
 });
+
+function initializeAdvancedFilters() {
+    const advancedFilters = document.querySelector('.advanced-filters');
+    if (advancedFilters) {
+        advancedFilters.addEventListener('toggle', function() {
+            localStorage.setItem('advancedFiltersOpen', this.open);
+        });
+
+        const savedState = localStorage.getItem('advancedFiltersOpen');
+        if (savedState === 'true') {
+            advancedFilters.setAttribute('open', '');
+        }
+    }
+}
 
 
 // Helper functions
