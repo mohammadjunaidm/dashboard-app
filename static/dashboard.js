@@ -313,7 +313,33 @@ function updateDeveloperTable(incidents) {
         tableBody.appendChild(row);
     });
 }
+function toggleProfileDropdown() {
+    const dropdown = document.getElementById('profileDropdown');
+    dropdown.classList.toggle('show');
 
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const isClickInside = event.target.closest('.user-profile-container');
+        if (!isClickInside && dropdown.classList.contains('show')) {
+            dropdown.classList.remove('show');
+        }
+    }, { once: true });
+}
+
+// Add this to your existing DOMContentLoaded event listener
+document.addEventListener('DOMContentLoaded', () => {
+    // ... your existing code ...
+
+    // Add confirmation for logout
+    const logoutLink = document.querySelector('.menu-item');
+    if (logoutLink) {
+        logoutLink.addEventListener('click', function(e) {
+            if (!confirm('Are you sure you want to logout?')) {
+                e.preventDefault();
+            }
+        });
+    }
+});
 
 function calculateDeveloperStats(incidents) {
     const developerStats = {};
