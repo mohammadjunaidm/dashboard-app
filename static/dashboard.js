@@ -369,13 +369,11 @@ function formatDuration(ms) {
 }
 
 
-// Priority chart function
 function updatePriorityChart() {
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded');
         return;
     }
-
 
     const canvas = document.getElementById('priorityChart');
     if (!canvas) {
@@ -383,9 +381,7 @@ function updatePriorityChart() {
         return;
     }
 
-
     const ctx = canvas.getContext('2d');
-
 
     try {
         const priorityCounts = {
@@ -396,7 +392,6 @@ function updatePriorityChart() {
             'Planning': 0
         };
 
-
         filteredIncidents.forEach(incident => {
             const priority = incident.priority || 'Unknown';
             if (priority.includes('Critical')) priorityCounts['Critical']++;
@@ -406,14 +401,12 @@ function updatePriorityChart() {
             else if (priority.includes('Planning')) priorityCounts['Planning']++;
         });
 
-
         const filteredPriorities = Object.entries(priorityCounts)
             .filter(([_, count]) => count > 0)
             .reduce((acc, [key, value]) => {
                 acc[key] = value;
                 return acc;
             }, {});
-
 
         const data = {
             labels: Object.keys(filteredPriorities),
@@ -429,11 +422,9 @@ function updatePriorityChart() {
             }]
         };
 
-
         if (window.priorityChart instanceof Chart) {
             window.priorityChart.destroy();
         }
-
 
         window.priorityChart = new Chart(ctx, {
             type: 'pie',
@@ -443,27 +434,10 @@ function updatePriorityChart() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'left',
+                        position: 'right',
                         labels: {
                             font: {
-                                size: 13
-                            },
-                            generateLabels: function(chart) {
-                                const data = chart.data;
-                                if (data.labels.length && data.datasets.length) {
-                                    return data.labels.map((label, i) => {
-                                        const value = data.datasets[0].data[i];
-                                        const total = data.datasets[0].data.reduce((acc, val) => acc + val, 0);
-                                        const percentage = ((value / total) * 100).toFixed(1);
-                                        return {
-                                            text: `${label}: ${value} (${percentage}%)`,
-                                            fillStyle: data.datasets[0].backgroundColor[i],
-                                            hidden: isNaN(value) || value === 0,
-                                            index: i
-                                        };
-                                    });
-                                }
-                                return [];
+                                size: 12
                             }
                         }
                     },
@@ -477,6 +451,14 @@ function updatePriorityChart() {
                                 return `${label}: ${value} (${percentage}%)`;
                             }
                         }
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
                     }
                 }
             }
