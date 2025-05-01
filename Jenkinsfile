@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     tools {
-        gradle 'JunaidGradle'  // Must match the name from Jenkins > Global Tool Configuration
-        nodejs 'JunaidNPM_node_18' // Assuming you installed NodeJS under this name
+        gradle 'JunaidGradle'              // This must match your Gradle tool name
+        nodejs 'JunaidNPM node 18'         // Fixed: use the exact NodeJS tool name
     }
 
     environment {
-        PATH = "${tool 'JunaidNPM_node_18'}/bin:${env.PATH}"
+        PATH = "${tool 'JunaidNPM node 18'}/bin:${env.PATH}"
     }
 
     stages {
@@ -28,7 +28,7 @@ pipeline {
         stage('Run backend') {
             steps {
                 echo 'executing Gradle...'
-                sh 'gradle -v' // or `sh 'gradle build'` to build the backend
+                sh 'gradle -v' // or 'gradle build' to trigger the build
             }
         }
     }
