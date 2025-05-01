@@ -2,22 +2,21 @@ pipeline {
   agent any
 
   stages {
-    stage("Build") {
+    stage("run frontend") {
       steps {
-        echo 'Building the application...'
-        echo 'Testing and deploy at once'
+        echo 'executing yarn...'
+        nodejs('JunaidNPM node 10.17') {
+          sh 'yarn install'
+        }
       }
     }
 
-    stage("Test") {
+    stage("Run backend") {
       steps {
-        echo 'Testing the application...'
-      }
-    }
-
-    stage("Deploy") {
-      steps {
-        echo 'Deploying the application...'
+        echo 'executing Gradle...'
+        withGradle() {
+          sh './gradlew -v'
+        }
       }
     }
   }
