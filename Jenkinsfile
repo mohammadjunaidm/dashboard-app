@@ -5,7 +5,7 @@ pipeline {
     stage("run frontend") {
       steps {
         echo 'executing yarn...'
-        nodejs('JunaidNPM node 10.17') {
+        nodejs('JunaidNPM node 18') {
           sh 'yarn install'
         }
       }
