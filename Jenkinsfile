@@ -31,10 +31,10 @@ pipeline {
                         try {
                             sh '''
                                 python --version
-                                python -m pip install --upgrade pip --user
-                                pip install --prefix=/tmp/pip-packages -r requirements.txt
-                                pip install --prefix=/tmp/pip-packages pytest pytest-cov
-                                export PYTHONPATH="${PYTHONPATH}:/tmp/pip-packages/lib/python3.9/site-packages"
+                                python -m pip install --upgrade pip  # Upgrading pip without --user flag
+                                pip install --no-cache-dir -r requirements.txt
+                                pip install --no-cache-dir pytest pytest-cov
+                                export PYTHONPATH="${PYTHONPATH}:/usr/local/lib/python3.9/site-packages"
                                 python -m pytest tests/ --cov=. --cov-report=term-missing || true
                             '''
                         } catch (Exception e) {
@@ -51,8 +51,8 @@ pipeline {
                     docker.image("python:${PYTHON_VERSION}").inside {
                         try {
                             sh '''
-                                pip install --prefix=/tmp/pip-packages bandit safety
-                                export PYTHONPATH="${PYTHONPATH}:/tmp/pip-packages/lib/python3.9/site-packages"
+                                pip install --no-cache-dir bandit safety
+                                export PYTHONPATH="${PYTHONPATH}:/usr/local/lib/python3.9/site-packages"
                                 bandit -r . -x tests/ || true
                                 safety check || true
                             '''
@@ -77,6 +77,7 @@ pipeline {
                                 -H "Authorization: Bearer ${RENDER_API_KEY}"
                             ''', returnStdout: true).trim()
                             
+
                             echo "Deployment triggered: ${response}"
                             
                             // Verify deployment status
