@@ -1,12 +1,13 @@
 pipeline {
     agent any
-    
+
     environment {
         RENDER_SERVICE_ID = 'srv-cvdra0dumphs73bkdmug'  // Your Render service ID
         PYTHON_VERSION = '3.9'
         DEPLOY_TIMEOUT = '300'  // 5 minutes timeout for deployment
+        PIP_PREFIX = '/tmp/pip-packages'  // Ensure pip installs to a directory we have access to
     }
-    
+
     stages {
         stage('Test Docker') {
             steps {
@@ -31,10 +32,10 @@ pipeline {
                         try {
                             sh '''
                                 python --version
-                                python -m pip install --upgrade pip  # Upgrading pip without --user flag
-                                pip install --no-cache-dir -r requirements.txt
-                                pip install --no-cache-dir pytest pytest-cov
-                                export PYTHONPATH="${PYTHONPATH}:/usr/local/lib/python3.9/site-packages"
+                                python -m pip install --upgrade pip --user
+                                pip install --prefix=${PIP_PREFIX} -r requirements.txt
+                                pip install --prefix=${PIP_PREFIX} pytest pytest-cov
+                                export PYTHONPATH="${PYTHONPATH}:${PIP_PREFIX}/lib/python3.9/site-packages"
                                 python -m pytest tests/ --cov=. --cov-report=term-missing || true
                             '''
                         } catch (Exception e) {
@@ -51,8 +52,8 @@ pipeline {
                     docker.image("python:${PYTHON_VERSION}").inside {
                         try {
                             sh '''
-                                pip install --no-cache-dir bandit safety
-                                export PYTHONPATH="${PYTHONPATH}:/usr/local/lib/python3.9/site-packages"
+                                pip install --prefix=${PIP_PREFIX} bandit safety
+                                export PYTHONPATH="${PYTHONPATH}:${PIP_PREFIX}/lib/python3.9/site-packages"
                                 bandit -r . -x tests/ || true
                                 safety check || true
                             '''
@@ -77,7 +78,6 @@ pipeline {
                                 -H "Authorization: Bearer ${RENDER_API_KEY}"
                             ''', returnStdout: true).trim()
                             
-
                             echo "Deployment triggered: ${response}"
                             
                             // Verify deployment status
@@ -116,7 +116,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             cleanWs()
