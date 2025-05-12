@@ -1,93 +1,51 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.9'
-            args '-u root'
-        }
-    }
-    
+    agent any
+
     environment {
-        RENDER_SERVICE_ID = 'srv-cvdra0dumphs73bkdmug'
-        PYTHON_VERSION = '3.9'
-        VENV_NAME = 'venv'
+        DOCKER_IMAGE = 'python:3.9'
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
-        stage('Setup Virtual Environment') {
+
+        stage('Build and Test') {
             steps {
-                sh """
-                    python -m venv ${VENV_NAME}
-                    . ${VENV_NAME}/bin/activate
-                """
+                script {
+                    docker.image(DOCKER_IMAGE).inside {
+                        sh 'python3 --version'
+                        sh 'pip3 install -r requirements.txt'
+                        sh 'python3 -m pytest tests/ || true'
+                    }
+                }
             }
         }
-        
-        stage('Install Dependencies') {
+
+        stage('Deploy') {
             steps {
-                sh """
-                    . ${VENV_NAME}/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                    pip install pytest
-                """
-            }
-        }
-        
-        stage('Run Tests') {
-            steps {
-                sh """
-                    . ${VENV_NAME}/bin/activate
-                    python -m pytest tests/ || true
-                """
-            }
-        }
-        
-        stage('Build') {
-            steps {
-                sh """
-                    . ${VENV_NAME}/bin/activate
-                    pip freeze > requirements.txt
-                """
-            }
-        }
-        
-        stage('Deploy to Render') {
-            steps {
-                withCredentials([string(credentialsId: 'render-api-key', variable: 'RENDER_API_KEY')]) {
-                    sh """
-                        curl -X POST \
-                        -H "Accept: application/json" \
-                        -H "Content-Type: application/json" \
-                        "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-                        -H "Authorization: Bearer ${RENDER_API_KEY}"
-                    """
+                script {
+                    docker.image(DOCKER_IMAGE).inside {
+                        withCredentials([string(credentialsId: 'render-api-key', variable: 'RENDER_API_KEY')]) {
+                            sh """
+                                curl -X POST \
+                                -H "Accept: application/json" \
+                                -H "Content-Type: application/json" \
+                                "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+                                -H "Authorization: Bearer ${RENDER_API_KEY}"
+                            """
+                        }
+                    }
                 }
             }
         }
     }
-    
+
     post {
         always {
-            sh """
-                if [ -d "${VENV_NAME}" ]; then
-                    . ${VENV_NAME}/bin/activate
-                    deactivate
-                    rm -rf ${VENV_NAME}
-                fi
-            """
             cleanWs()
-        }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed! Check the logs for details.'
         }
     }
 }
