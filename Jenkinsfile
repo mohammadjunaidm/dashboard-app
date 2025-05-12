@@ -1,23 +1,28 @@
 pipeline {
     agent any
-
+    
     stages {
-        stage('Checkout') {
+        stage('Test Docker') {
             steps {
-                checkout scm
+                sh 'docker --version'
+                sh 'docker run hello-world'
             }
         }
-
-        stage('Test') {
+        
+        stage('Build and Test') {
             steps {
-                sh '''
-                    python3 --version
-                    pip3 install -r requirements.txt
-                    python3 -m pytest tests/ || true
-                '''
+                script {
+                    docker.image('python:3.9').inside {
+                        sh '''
+                            python --version
+                            pip install -r requirements.txt
+                            python -m pytest tests/ || true
+                        '''
+                    }
+                }
             }
         }
-
+        
         stage('Deploy') {
             steps {
                 withCredentials([string(credentialsId: 'render-api-key', variable: 'RENDER_API_KEY')]) {
@@ -32,7 +37,7 @@ pipeline {
             }
         }
     }
-
+    
     post {
         always {
             cleanWs()
