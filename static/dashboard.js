@@ -863,7 +863,7 @@ function initializeAdvancedFilters() {
 
 // Helper functions
 function getServiceNowTicketUrl(incidentNumber) {
-    return `https://dev278567.service-now.com/nav_to.do?uri=incident.do?sysparm_query=number=${incidentNumber}`;
+    return `https://${SERVICENOW_INSTANCE}/nav_to.do?uri=incident.do?sysparm_query=number=${incidentNumber}`;
 }
 
 
