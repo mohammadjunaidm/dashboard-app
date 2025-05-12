@@ -1,34 +1,39 @@
 pipeline {
-    agent any
-
-    tools {
-        gradle 'JunaidGradle'              // This must match your Gradle tool name
-        nodejs 'JunaidNPM node 18'         // Fixed: use the exact NodeJS tool name
+    agent {
+        docker {
+            image 'python:3.9'
+            args '-u root'
+        }
     }
-
-    environment {
-        PATH = "${tool 'JunaidNPM node 18'}/bin:${env.PATH}"
-    }
-
+    
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-
-        stage('Run frontend') {
+        
+        stage('Install Dependencies') {
             steps {
-                echo 'executing yarn...'
-                sh 'npm install -g yarn@1.13.0'
-                sh 'yarn install'
+                sh 'pip install -r requirements.txt'
             }
         }
-
-        stage('Run backend') {
+        
+        stage('Run Tests') {
             steps {
-                echo 'executing Gradle...'
-                sh 'gradle -v' // or 'gradle build' to trigger the build
+                sh 'python -m pytest tests/'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh 'pip freeze > requirements.txt'
+            }
+        }
+        
+        stage('Deploy to Render') {
+            steps {
+                sh 'curl -X POST https://api.render.com/deploy/srv-YOUR_RENDER_SERVICE_ID?key=YOUR_RENDER_API_KEY'
             }
         }
     }
