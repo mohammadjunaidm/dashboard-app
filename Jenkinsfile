@@ -15,7 +15,7 @@ pipeline {
                     docker.image('python:3.9').inside {
                         sh '''
                             python --version
-                            pip install -r requirements.txt
+                            pip install --user -r requirements.txt
                             python -m pytest tests/ || true
                         '''
                     }
