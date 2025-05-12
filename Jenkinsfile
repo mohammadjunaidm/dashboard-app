@@ -31,7 +31,7 @@ pipeline {
                         try {
                             sh '''
                                 python --version
-                                python -m pip install --upgrade pip
+                                python -m pip install --upgrade pip --user
                                 pip install --prefix=/tmp/pip-packages -r requirements.txt
                                 pip install --prefix=/tmp/pip-packages pytest pytest-cov
                                 export PYTHONPATH="${PYTHONPATH}:/tmp/pip-packages/lib/python3.9/site-packages"
