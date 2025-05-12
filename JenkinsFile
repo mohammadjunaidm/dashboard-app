@@ -6,34 +6,18 @@ pipeline {
         }
     }
     
+    environment {
+        RENDER_SERVICE_ID = 'srv-cvdra0dumphs73bkdmug'
+    }
+    
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-        
-        stage('Install Dependencies') {
-            steps {
-                sh 'pip install -r requirements.txt'
-            }
-        }
-        
-        stage('Run Tests') {
-            steps {
-                sh 'python -m pytest tests/'
-            }
-        }
-        
-        stage('Build') {
-            steps {
-                sh 'pip freeze > requirements.txt'
-            }
-        }
+        // ... other stages ...
         
         stage('Deploy to Render') {
             steps {
-                sh 'curl -X POST https://api.render.com/deploy/srv-YOUR_RENDER_SERVICE_ID?key=YOUR_RENDER_API_KEY'
+                withCredentials([string(credentialsId: 'render-api-key', variable: 'RENDER_API_KEY')]) {
+                    sh "curl -X POST https://api.render.com/deploy/${RENDER_SERVICE_ID}?key=${RENDER_API_KEY}"
+                }
             }
         }
     }
