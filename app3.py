@@ -533,6 +533,12 @@ def send_slack_notification(incident_number, incident_data):
 @app.route("/dashboard")
 @requires_auth
 def dashboard():
+    return render_template(
+        "dashboard.html",
+        user=session.get('user'),
+        servicenow_instance=SERVICENOW_INSTANCE
+    )
+    
     try:
         user_info = session.get('user')
         if not user_info:
