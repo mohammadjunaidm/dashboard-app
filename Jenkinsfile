@@ -4,17 +4,56 @@ pipeline {
     environment {
         RENDER_SERVICE_ID = 'srv-cvdra0dumphs73bkdmug'
         PYTHON_VERSION = '3.9'
+        DEPLOY_TIMEOUT = '300'  // 5 minutes timeout for deployment
+    }
+    
+    options {
+        skipDefaultCheckout()  // Skip the default checkout
+        disableConcurrentBuilds()  // Prevent concurrent builds
     }
     
     stages {
+        stage('Prepare Workspace') {
+            steps {
+                script {
+                    try {
+                        cleanWs()  // Clean workspace before build
+                        checkout scm  // Checkout code
+                    } catch (Exception e) {
+                        error "Failed to prepare workspace: ${e.getMessage()}"
+                    }
+                }
+            }
+        }
+        
         stage('Test Docker') {
             steps {
                 script {
-                    sh '''
-                        docker --version
-                        docker info
-                        docker run hello-world
-                    '''
+                    try {
+                        sh '''
+                            docker --version
+                            docker info
+                            docker run hello-world
+                            docker system prune -f  # Clean up after test
+                        '''
+                    } catch (Exception e) {
+                        error "Docker test failed: ${e.getMessage()}"
+                    }
+                }
+            }
+        }
+        
+        stage('Code Quality') {
+            steps {
+                script {
+                    docker.image("python:${PYTHON_VERSION}").inside('-u root') {
+                        sh '''
+                            pip install flake8 black pylint
+                            flake8 . --exclude=venv,tests || true
+                            black . --check || true
+                            pylint --recursive=y . || true
+                        '''
+                    }
                 }
             }
         }
@@ -23,11 +62,35 @@ pipeline {
             steps {
                 script {
                     docker.image("python:${PYTHON_VERSION}").inside('-u root') {
+                        try {
+                            sh '''
+                                python --version
+                                pip install --no-cache-dir -r requirements.txt
+                                pip install --no-cache-dir pytest pytest-cov pytest-html
+                                mkdir -p test-results
+                                python -m pytest tests/ \
+                                    --cov=. \
+                                    --cov-report=xml \
+                                    --cov-report=html \
+                                    --html=test-results/report.html \
+                                    -v || true
+                            '''
+                        } catch (Exception e) {
+                            error "Build and test failed: ${e.getMessage()}"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Security Scan') {
+            steps {
+                script {
+                    docker.image("python:${PYTHON_VERSION}").inside('-u root') {
                         sh '''
-                            python --version
-                            pip install -r requirements.txt
-                            pip install pytest pytest-cov
-                            python -m pytest tests/ || true
+                            pip install bandit safety
+                            bandit -r . -x tests/ || true
+                            safety check || true
                         '''
                     }
                 }
@@ -38,13 +101,43 @@ pipeline {
             steps {
                 script {
                     withCredentials([string(credentialsId: 'render-api-key', variable: 'RENDER_API_KEY')]) {
-                        sh '''
-                            curl -X POST \
-                            -H "Accept: application/json" \
-                            -H "Content-Type: application/json" \
-                            -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys"
-                        '''
+                        try {
+                            // Trigger deployment
+                            def response = sh(script: '''
+                                curl -X POST \
+                                -H "Accept: application/json" \
+                                -H "Content-Type: application/json" \
+                                -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                                "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys"
+                            ''', returnStdout: true).trim()
+                            
+                            echo "Deployment triggered: ${response}"
+                            
+                            // Wait for deployment to complete
+                            def deploymentComplete = false
+                            def timeout = DEPLOY_TIMEOUT.toInteger()
+                            def startTime = System.currentTimeMillis()
+                            
+                            while (!deploymentComplete && (System.currentTimeMillis() - startTime) < (timeout * 1000)) {
+                                sleep 30  // Check every 30 seconds
+                                
+                                def status = sh(script: '''
+                                    curl -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                                    "https://api.render.com/v1/services/${RENDER_SERVICE_ID}"
+                                ''', returnStdout: true).trim()
+                                
+                                if (status.contains('"status":"live"')) {
+                                    deploymentComplete = true
+                                    echo "Deployment completed successfully!"
+                                }
+                            }
+                            
+                            if (!deploymentComplete) {
+                                error "Deployment timed out after ${timeout} seconds"
+                            }
+                        } catch (Exception e) {
+                            error "Deployment failed: ${e.getMessage()}"
+                        }
                     }
                 }
             }
@@ -53,14 +146,39 @@ pipeline {
     
     post {
         always {
-            cleanWs()
-            sh 'docker system prune -f || true'
+            script {
+                try {
+                    // Clean workspace
+                    cleanWs(
+                        cleanWhenSuccess: true,
+                        cleanWhenFailure: true,
+                        cleanWhenAborted: true,
+                        deleteDirs: true
+                    )
+                    
+                    // Clean Docker
+                    sh '''
+                        docker system prune -f || true
+                        docker volume prune -f || true
+                    '''
+                } catch (Exception e) {
+                    echo "Cleanup failed: ${e.getMessage()}"
+                }
+            }
         }
         success {
-            echo 'Pipeline completed successfully!'
+            script {
+                echo 'Pipeline completed successfully!'
+                // Add notification here if needed
+                // slackSend channel: '#deployments', color: 'good', message: "Deploy successful: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
+            }
         }
         failure {
-            echo 'Pipeline failed! Check the logs for details.'
+            script {
+                echo 'Pipeline failed! Check the logs for details.'
+                // Add notification here if needed
+                // slackSend channel: '#deployments', color: 'danger', message: "Deploy failed: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
+            }
         }
     }
 }
