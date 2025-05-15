@@ -5,6 +5,8 @@ pipeline {
         RENDER_SERVICE_ID = 'srv-cvdra0dumphs73bkdmug'
         PYTHON_VERSION = '3.9'
         DEPLOY_TIMEOUT = '300'  // 5 minutes timeout for deployment
+        RENDER_API_KEY = 'rnd_TL0axwFQR6pGC7mRf13Zh1MoybCx'
+
     }
     
     options {
