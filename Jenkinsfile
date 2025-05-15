@@ -6,7 +6,6 @@ pipeline {
         PYTHON_VERSION = '3.9'
         DEPLOY_TIMEOUT = '300'  // 5 minutes timeout for deployment
         RENDER_API_KEY = 'rnd_TL0axwFQR6pGC7mRf13Zh1MoybCx'
-
     }
     
     options {
@@ -102,44 +101,51 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    withCredentials([string(credentialsId: 'render-api-key', variable: 'RENDER_API_KEY')]) {
-                        try {
-                            // Trigger deployment
-                            def response = sh(script: '''
-                                curl -X POST \
-                                -H "Accept: application/json" \
-                                -H "Content-Type: application/json" \
-                                -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                                "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys"
-                            ''', returnStdout: true).trim()
-                            
-                            echo "Deployment triggered: ${response}"
-                            
-                            // Wait for deployment to complete
-                            def deploymentComplete = false
-                            def timeout = DEPLOY_TIMEOUT.toInteger()
-                            def startTime = System.currentTimeMillis()
-                            
-                            while (!deploymentComplete && (System.currentTimeMillis() - startTime) < (timeout * 1000)) {
-                                sleep 30  // Check every 30 seconds
-                                
-                                def status = sh(script: '''
-                                    curl -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                                    "https://api.render.com/v1/services/${RENDER_SERVICE_ID}"
-                                ''', returnStdout: true).trim()
-                                
-                                if (status.contains('"status":"live"')) {
-                                    deploymentComplete = true
-                                    echo "Deployment completed successfully!"
-                                }
-                            }
-                            
-                            if (!deploymentComplete) {
-                                error "Deployment timed out after ${timeout} seconds"
-                            }
-                        } catch (Exception e) {
-                            error "Deployment failed: ${e.getMessage()}"
+                    try {
+                        // Trigger deployment
+                        def deployResponse = sh(script: """
+                            curl -X POST \
+                            -H "Accept: application/json" \
+                            -H "Content-Type: application/json" \
+                            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys"
+                        """, returnStdout: true).trim()
+                        
+                        echo "Deployment triggered: ${deployResponse}"
+                        
+                        if (deployResponse.contains("error") || deployResponse.contains("Unauthorized")) {
+                            error "Failed to trigger deployment: ${deployResponse}"
                         }
+                        
+                        // Wait for deployment to complete
+                        def deploymentComplete = false
+                        def timeout = DEPLOY_TIMEOUT.toInteger()
+                        def startTime = System.currentTimeMillis()
+                        def checkInterval = 20 // Check every 20 seconds
+                        
+                        while (!deploymentComplete && (System.currentTimeMillis() - startTime) < (timeout * 1000)) {
+                            sleep checkInterval
+                            
+                            def status = sh(script: """
+                                curl -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                                "https://api.render.com/v1/services/${RENDER_SERVICE_ID}"
+                            """, returnStdout: true).trim()
+                            
+                            if (status.contains('"status":"live"')) {
+                                deploymentComplete = true
+                                echo "Deployment completed successfully!"
+                            } else if (status.contains("error") || status.contains("Unauthorized")) {
+                                error "Error checking deployment status: ${status}"
+                            } else {
+                                echo "Deployment still in progress. Current status: ${status}"
+                            }
+                        }
+                        
+                        if (!deploymentComplete) {
+                            error "Deployment timed out after ${timeout} seconds"
+                        }
+                    } catch (Exception e) {
+                        error "Deployment failed: ${e.getMessage()}"
                     }
                 }
             }
