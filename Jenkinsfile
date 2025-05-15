@@ -6,12 +6,15 @@ pipeline {
         }
     }
     
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
+   stage('Checkout') {
+    steps {
+        echo 'Starting checkout...'
+        checkout scm
+        sh 'ls -la'
+        sh 'git status || echo "Git not initialized"'
+         }
+    }
+
         
         stage('Install Dependencies') {
             steps {
