@@ -9,7 +9,7 @@ pipeline {
     }
     
     options {
-        skipDefaultCheckout()
+        skipDefaultCheckout(false)  // Change this to false to ensure checkout happens
         disableConcurrentBuilds()
     }
     
@@ -18,6 +18,7 @@ pipeline {
             steps {
                 cleanWs()
                 checkout scm
+                sh 'pwd && ls -la'  // Debug: Print current directory and its contents
             }
         }
         
@@ -25,12 +26,15 @@ pipeline {
             agent {
                 docker {
                     image "python:${PYTHON_VERSION}"
-                    args '-u root'
+                    args '-u root -v $WORKSPACE:/app'
+                    reuseNode true
                 }
             }
             steps {
                 script {
                     sh '''
+                        cd /app
+                        pwd && ls -la  // Debug: Print current directory and its contents
                         python --version
                         pip install --no-cache-dir -r requirements.txt
                         pip install --no-cache-dir flake8 black pylint pytest pytest-cov pytest-html bandit safety
@@ -45,6 +49,7 @@ pipeline {
                 stage('Code Quality') {
                     steps {
                         sh '''
+                            cd /app
                             flake8 . --exclude=venv,tests || true
                             black . --check || true
                             pylint --recursive=y . || true
@@ -55,6 +60,7 @@ pipeline {
                 stage('Unit Tests') {
                     steps {
                         sh '''
+                            cd /app
                             python -m pytest tests/ \
                                 --cov=. \
                                 --cov-report=xml \
@@ -68,6 +74,7 @@ pipeline {
                 stage('Security Scan') {
                     steps {
                         sh '''
+                            cd /app
                             bandit -r . -x tests/ || true
                             safety check || true
                         '''
