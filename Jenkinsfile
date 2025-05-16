@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.9'
+            args '-u root:root'  // Run as root in container
+        }
+    }
 
     environment {
         TOMCAT_HOST = 'localhost'
@@ -14,23 +19,23 @@ pipeline {
             }
         }
 
-        stage('Install System Dependencies') {
-            steps {
-                sh '''
-                    sudo apt-get update
-                    sudo apt-get install -y python3-venv
-                '''
-            }
-        }
-
         stage('Setup Python Environment') {
             steps {
-                sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
+                script {
+                    try {
+                        sh '''
+                            python --version
+                            python -m venv venv
+                            . venv/bin/activate
+                            pip install --upgrade pip
+                            pip install -r requirements.txt
+                            pip install gunicorn
+                        '''
+                    } catch (Exception e) {
+                        echo "Failed to set up Python environment: ${e.getMessage()}"
+                        throw e
+                    }
+                }
             }
         }
 
@@ -38,8 +43,42 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    pytest tests/ -v
+                    python -m pytest tests/ -v
                 '''
+            }
+        }
+
+        stage('Package Application') {
+            steps {
+                sh '''
+                    mkdir -p deploy/WEB-INF/classes
+                    cp -r * deploy/WEB-INF/classes/ || true
+                    cd deploy
+                    jar -cvf ../application.war .
+                '''
+            }
+        }
+
+        stage('Deploy to Tomcat') {
+            steps {
+                script {
+                    // Stop existing application
+                    try {
+                        sh """
+                            curl -s -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
+                            'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/stop?path=/application'
+                        """
+                    } catch (err) {
+                        echo "Application was not running: ${err}"
+                    }
+
+                    // Deploy new version
+                    sh """
+                        curl -s -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
+                        --upload-file application.war \
+                        'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/deploy?path=/application&update=true'
+                    """
+                }
             }
         }
 
@@ -47,16 +86,10 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    pkill gunicorn || true  # stop if already running
-                    nohup gunicorn --bind 0.0.0.0:8000 wsgi:app > gunicorn.log 2>&1 &
+                    gunicorn --bind 0.0.0.0:8000 wsgi:app -D
                 '''
             }
         }
-
-        // Optional: Add a health check or curl request to confirm server is up
-
-        // Optional: Deployment to Tomcat — only needed if you're pushing static files or other assets
-
     }
 
     post {
@@ -64,13 +97,11 @@ pipeline {
             echo '🧹 Cleaning workspace...'
             cleanWs()
         }
-
+        success {
+            echo '✅ Build succeeded!'
+        }
         failure {
             echo '❌ Build failed!'
-        }
-
-        success {
-            echo '✅ Build and deployment completed successfully.'
         }
     }
 }
