@@ -1,148 +1,91 @@
 pipeline {
     agent any
-    
+
+    tools {
+        // Optional: Fix Git warning (configure this in Global Tool Configuration)
+        git 'Default' // Or your custom Git installation name
+    }
+
     environment {
-        RENDER_SERVICE_ID = 'srv-cvdra0dumphs73bkdmug'
-        PYTHON_VERSION = '3.9'
-        DEPLOY_TIMEOUT = '300'  // 5 minutes timeout for deployment
-        RENDER_API_KEY = 'rnd_TL0axwFQR6pGC7mRf13Zh1MoybCx'
+        DOCKER_IMAGE = 'python:3.9'
+        DOCKER_WORKDIR = '/workspace'
     }
-    
-    options {
-        skipDefaultCheckout(false)
-        disableConcurrentBuilds()
-    }
-    
+
     stages {
-        stage('Prepare Workspace') {
-            steps {
-                cleanWs()
-                checkout scm
-                sh 'pwd && ls -la'
-            }
-        }
-        
-        stage('Build and Test') {
-            agent {
-                docker {
-                    image "python:${PYTHON_VERSION}"
-                    args '-u root -v ${WORKSPACE}:/workspace'
-                    reuseNode true
-                }
-            }
+        stage('Setup Python Environment') {
             steps {
                 script {
-                    sh '''
-                        echo "Current directory:"
-                        pwd
-                        echo "Directory contents:"
-                        ls -la
-                        echo "Workspace directory contents:"
-                        ls -la /workspace
-                        cd /workspace
-                        python --version
-                        pip install --no-cache-dir -r requirements.txt
-                        pip install --no-cache-dir flake8 black pylint pytest pytest-cov pytest-html bandit safety
-                        mkdir -p test-results
-                    '''
-                }
-            }
-        }
-        
-        stage('Parallel Checks') {
-            parallel {
-                stage('Code Quality') {
-                    steps {
+                    docker.image(env.DOCKER_IMAGE).inside("-v ${env.WORKSPACE}:${env.DOCKER_WORKDIR} -w ${env.DOCKER_WORKDIR}") {
                         sh '''
-                            cd /workspace
-                            flake8 . --exclude=venv,tests || true
-                            black . --check || true
-                            pylint --recursive=y . || true
-                        '''
-                    }
-                }
-                
-                stage('Unit Tests') {
-                    steps {
-                        sh '''
-                            cd /workspace
-                            python -m pytest tests/ \
-                                --cov=. \
-                                --cov-report=xml \
-                                --cov-report=html \
-                                --html=test-results/report.html \
-                                -v || true
-                        '''
-                    }
-                }
-                
-                stage('Security Scan') {
-                    steps {
-                        sh '''
-                            cd /workspace
-                            bandit -r . -x tests/ || true
-                            safety check || true
+                            echo "🔍 Checking working directory:"
+                            pwd
+                            echo "📂 Listing contents of /workspace:"
+                            ls -la /workspace
+                            echo "📂 Listing contents of current dir:"
+                            ls -la
+                            
+                            if [ ! -f requirements.txt ]; then
+                                echo "❌ requirements.txt not found! Exiting..."
+                                exit 1
+                            fi
+
+                            echo "✅ Installing requirements..."
+                            pip install --no-cache-dir -r requirements.txt
                         '''
                     }
                 }
             }
         }
-        
+
+        stage('Run Unit Tests') {
+            steps {
+                echo '✅ Running unit tests...'
+                // Example: inside Docker again
+                script {
+                    docker.image(env.DOCKER_IMAGE).inside("-v ${env.WORKSPACE}:${env.DOCKER_WORKDIR} -w ${env.DOCKER_WORKDIR}") {
+                        sh 'pytest tests/'
+                    }
+                }
+            }
+        }
+
+        stage('Code Quality') {
+            steps {
+                echo '🔍 Running code quality tools...'
+                script {
+                    docker.image(env.DOCKER_IMAGE).inside("-v ${env.WORKSPACE}:${env.DOCKER_WORKDIR} -w ${env.DOCKER_WORKDIR}") {
+                        sh 'flake8 .'
+                    }
+                }
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                echo '🛡️ Running security scans...'
+                script {
+                    docker.image(env.DOCKER_IMAGE).inside("-v ${env.WORKSPACE}:${env.DOCKER_WORKDIR} -w ${env.DOCKER_WORKDIR}") {
+                        sh 'bandit -r .'
+                    }
+                }
+            }
+        }
+
         stage('Deploy') {
             steps {
-                script {
-                    def deployResponse = sh(script: """
-                        curl -X POST \
-                        -H "Accept: application/json" \
-                        -H "Content-Type: application/json" \
-                        -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                        "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys"
-                    """, returnStdout: true).trim()
-                    
-                    echo "Deployment triggered: ${deployResponse}"
-                    
-                    if (deployResponse.contains("error") || deployResponse.contains("Unauthorized")) {
-                        error "Failed to trigger deployment: ${deployResponse}"
-                    }
-                    
-                    def timeout = DEPLOY_TIMEOUT.toInteger()
-                    def startTime = System.currentTimeMillis()
-                    def checkInterval = 10 // Check every 10 seconds
-                    
-                    waitUntil(timeout: timeout) {
-                        sleep checkInterval
-                        
-                        def status = sh(script: """
-                            curl -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}"
-                        """, returnStdout: true).trim()
-                        
-                        if (status.contains('"status":"live"')) {
-                            echo "Deployment completed successfully!"
-                            return true
-                        } else if (status.contains("error") || status.contains("Unauthorized")) {
-                            error "Error checking deployment status: ${status}"
-                        } else {
-                            echo "Deployment still in progress. Current status: ${status}"
-                            return false
-                        }
-                    }
-                }
+                echo '🚀 Deploying application...'
+                // Add deployment script here
             }
         }
     }
-    
+
     post {
         always {
+            echo '📦 Cleaning up workspace...'
             cleanWs()
-            sh 'docker system prune -f || true'
-            sh 'docker volume prune -f || true'
-        }
-        success {
-            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo 'Pipeline failed! Check the logs for details.'
+            echo '❌ Build failed. Please check the logs.'
         }
     }
 }
