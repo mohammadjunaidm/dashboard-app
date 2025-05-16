@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        TOMCAT_HOST = 'localhost'
+        TOMCAT_HOST = 'host.docker.internal'
         TOMCAT_PORT = '9090'
         TOMCAT_CREDENTIALS = credentials('tomcat-admin-credential')
     }
