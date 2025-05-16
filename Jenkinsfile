@@ -73,8 +73,7 @@ pipeline {
                                                         usernameVariable: 'TOMCAT_USER', 
                                                         passwordVariable: 'TOMCAT_PASS')]) {
                             sh '''
-                                curl -f -s -u "$TOMCAT_USER:$TOMCAT_PASS" \
-                                    "http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/stop?path=/application"
+                                curl -f -s -u $TOMCAT_USER:$TOMCAT_PASS "http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/stop?path=/application"
                             '''
                         }
                     } catch (err) {
