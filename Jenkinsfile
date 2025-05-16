@@ -28,6 +28,12 @@ pipeline {
             }
         }
 
+        stage('Check Python') {
+            steps {
+                sh 'python3 --version'
+            }
+        }
+
         stage('Run Unit Tests') {
             steps {
                 sh '. venv/bin/activate && python -m pytest tests/ -v'
