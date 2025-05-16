@@ -14,87 +14,63 @@ pipeline {
             }
         }
 
-        stage('Setup Python Environment') {
+        stage('Install System Dependencies') {
             steps {
                 sh '''
-                    python3 --version
-                    which python3
-                    python3 -m venv venv || echo "Failed to create venv"
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                    pip install gunicorn
+                    sudo apt-get update
+                    sudo apt-get install -y python3-venv
                 '''
             }
         }
 
-        stage('Check Python') {
+        stage('Setup Python Environment') {
             steps {
-                sh 'python3 --version'
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
             }
         }
 
         stage('Run Unit Tests') {
             steps {
-                sh '. venv/bin/activate && python -m pytest tests/ -v'
+                sh '''
+                    . venv/bin/activate
+                    pytest tests/ -v
+                '''
             }
         }
 
-        stage('Package Application') {
+        stage('Start Gunicorn') {
             steps {
-                sh 'mkdir -p WEB-INF/classes'
-                sh 'cp -R * WEB-INF/classes/ || true'
-                sh 'jar -cvf application.war WEB-INF'
+                sh '''
+                    . venv/bin/activate
+                    pkill gunicorn || true  # stop if already running
+                    nohup gunicorn --bind 0.0.0.0:8000 wsgi:app > gunicorn.log 2>&1 &
+                '''
             }
         }
 
-        stage('Deploy to Tomcat') {
-            steps {
-                script {
-                    def warFile = "application.war"
+        // Optional: Add a health check or curl request to confirm server is up
 
-                    // Stop any existing application
-                    try {
-                        sh """
-                            curl -v -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
-                            'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/undeploy?path=/application'
-                        """
-                    } catch (err) {
-                        echo "Application was not previously deployed or couldn't be undeployed: ${err}"
-                    }
+        // Optional: Deployment to Tomcat — only needed if you're pushing static files or other assets
 
-                    // Deploy new WAR file
-                    sh """
-                        curl -v -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
-                        -T ${warFile} \
-                        'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/deploy?path=/application&update=true'
-                    """
-
-                    // Verify deployment
-                    sh """
-                        curl -v -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
-                        'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/list' | grep 'application'
-                    """
-
-                    // Start Gunicorn (if needed)
-                    sh """
-                        cd ${WORKSPACE}
-                        python -m gunicorn --bind 0.0.0.0:8000 wsgi:app -D
-                    """
-                }
-            }
-        }
     }
 
     post {
         always {
+            echo '🧹 Cleaning workspace...'
             cleanWs()
         }
-        success {
-            echo 'Deployment successful!'
-        }
+
         failure {
-            echo 'Deployment failed!'
+            echo '❌ Build failed!'
+        }
+
+        success {
+            echo '✅ Build and deployment completed successfully.'
         }
     }
 }
