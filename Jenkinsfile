@@ -1,8 +1,8 @@
 pipeline {
     agent {
         docker {
-            image 'python:3.9'
-            args '-u root:root'  // Run as root in container
+            image 'adoptopenjdk/openjdk11:latest'  // Base image with Java
+            args '-u root:root'
         }
     }
 
@@ -13,6 +13,15 @@ pipeline {
     }
 
     stages {
+        stage('Install Python') {
+            steps {
+                sh '''
+                    apt-get update
+                    apt-get install -y python3 python3-pip python3-venv
+                '''
+            }
+        }
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -22,19 +31,14 @@ pipeline {
         stage('Setup Python Environment') {
             steps {
                 script {
-                    try {
-                        sh '''
-                            python --version
-                            python -m venv venv
-                            . venv/bin/activate
-                            pip install --upgrade pip
-                            pip install -r requirements.txt
-                            pip install gunicorn
-                        '''
-                    } catch (Exception e) {
-                        echo "Failed to set up Python environment: ${e.getMessage()}"
-                        throw e
-                    }
+                    sh '''
+                        python3 --version
+                        python3 -m venv venv
+                        . venv/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements.txt
+                        pip install gunicorn
+                    '''
                 }
             }
         }
@@ -51,8 +55,9 @@ pipeline {
         stage('Package Application') {
             steps {
                 sh '''
+                    rm -rf deploy
                     mkdir -p deploy/WEB-INF/classes
-                    cp -r * deploy/WEB-INF/classes/ || true
+                    cp -r app3.py requirements.txt wsgi.py static templates venv deploy/WEB-INF/classes/
                     cd deploy
                     jar -cvf ../application.war .
                 '''
@@ -86,7 +91,7 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    gunicorn --bind 0.0.0.0:8000 wsgi:app -D
+                    gunicorn --bind 0.0.0.0:8000 wsgi:app -D --access-logfile access.log --error-logfile error.log
                 '''
             }
         }
