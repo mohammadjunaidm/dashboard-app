@@ -9,87 +9,65 @@ pipeline {
     }
     
     options {
-        skipDefaultCheckout()  // Skip the default checkout
-        disableConcurrentBuilds()  // Prevent concurrent builds
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
     }
     
     stages {
         stage('Prepare Workspace') {
             steps {
+                cleanWs()
+                checkout scm
+            }
+        }
+        
+        stage('Build and Test') {
+            agent {
+                docker {
+                    image "python:${PYTHON_VERSION}"
+                    args '-u root'
+                }
+            }
+            steps {
                 script {
-                    try {
-                        cleanWs()  // Clean workspace before build
-                        checkout scm  // Checkout code
-                    } catch (Exception e) {
-                        error "Failed to prepare workspace: ${e.getMessage()}"
-                    }
+                    sh '''
+                        python --version
+                        pip install --no-cache-dir -r requirements.txt
+                        pip install --no-cache-dir flake8 black pylint pytest pytest-cov pytest-html bandit safety
+                        mkdir -p test-results
+                    '''
                 }
             }
         }
         
-        stage('Test Docker') {
-            steps {
-                script {
-                    try {
+        stage('Parallel Checks') {
+            parallel {
+                stage('Code Quality') {
+                    steps {
                         sh '''
-                            docker --version
-                            docker info
-                            docker run hello-world
-                            docker system prune -f  # Clean up after test
-                        '''
-                    } catch (Exception e) {
-                        error "Docker test failed: ${e.getMessage()}"
-                    }
-                }
-            }
-        }
-        
-        stage('Code Quality') {
-            steps {
-                script {
-                    docker.image("python:${PYTHON_VERSION}").inside('-u root') {
-                        sh '''
-                            pip install flake8 black pylint
                             flake8 . --exclude=venv,tests || true
                             black . --check || true
                             pylint --recursive=y . || true
                         '''
                     }
                 }
-            }
-        }
-        
-        stage('Build and Test') {
-            steps {
-                script {
-                    docker.image("python:${PYTHON_VERSION}").inside('-u root') {
-                        try {
-                            sh '''
-                                python --version
-                                pip install --no-cache-dir -r requirements.txt
-                                pip install --no-cache-dir pytest pytest-cov pytest-html
-                                mkdir -p test-results
-                                python -m pytest tests/ \
-                                    --cov=. \
-                                    --cov-report=xml \
-                                    --cov-report=html \
-                                    --html=test-results/report.html \
-                                    -v || true
-                            '''
-                        } catch (Exception e) {
-                            error "Build and test failed: ${e.getMessage()}"
-                        }
+                
+                stage('Unit Tests') {
+                    steps {
+                        sh '''
+                            python -m pytest tests/ \
+                                --cov=. \
+                                --cov-report=xml \
+                                --cov-report=html \
+                                --html=test-results/report.html \
+                                -v || true
+                        '''
                     }
                 }
-            }
-        }
-        
-        stage('Security Scan') {
-            steps {
-                script {
-                    docker.image("python:${PYTHON_VERSION}").inside('-u root') {
+                
+                stage('Security Scan') {
+                    steps {
                         sh '''
-                            pip install bandit safety
                             bandit -r . -x tests/ || true
                             safety check || true
                         '''
@@ -101,51 +79,41 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    try {
-                        // Trigger deployment
-                        def deployResponse = sh(script: """
-                            curl -X POST \
-                            -H "Accept: application/json" \
-                            -H "Content-Type: application/json" \
-                            -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys"
+                    def deployResponse = sh(script: """
+                        curl -X POST \
+                        -H "Accept: application/json" \
+                        -H "Content-Type: application/json" \
+                        -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                        "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys"
+                    """, returnStdout: true).trim()
+                    
+                    echo "Deployment triggered: ${deployResponse}"
+                    
+                    if (deployResponse.contains("error") || deployResponse.contains("Unauthorized")) {
+                        error "Failed to trigger deployment: ${deployResponse}"
+                    }
+                    
+                    def timeout = DEPLOY_TIMEOUT.toInteger()
+                    def startTime = System.currentTimeMillis()
+                    def checkInterval = 10 // Check every 10 seconds
+                    
+                    waitUntil(timeout: timeout) {
+                        sleep checkInterval
+                        
+                        def status = sh(script: """
+                            curl -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}"
                         """, returnStdout: true).trim()
                         
-                        echo "Deployment triggered: ${deployResponse}"
-                        
-                        if (deployResponse.contains("error") || deployResponse.contains("Unauthorized")) {
-                            error "Failed to trigger deployment: ${deployResponse}"
+                        if (status.contains('"status":"live"')) {
+                            echo "Deployment completed successfully!"
+                            return true
+                        } else if (status.contains("error") || status.contains("Unauthorized")) {
+                            error "Error checking deployment status: ${status}"
+                        } else {
+                            echo "Deployment still in progress. Current status: ${status}"
+                            return false
                         }
-                        
-                        // Wait for deployment to complete
-                        def deploymentComplete = false
-                        def timeout = DEPLOY_TIMEOUT.toInteger()
-                        def startTime = System.currentTimeMillis()
-                        def checkInterval = 2 // Check every 20 seconds
-                        
-                        while (!deploymentComplete && (System.currentTimeMillis() - startTime) < (timeout * 1000)) {
-                            sleep checkInterval
-                            
-                            def status = sh(script: """
-                                curl -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                                "https://api.render.com/v1/services/${RENDER_SERVICE_ID}"
-                            """, returnStdout: true).trim()
-                            
-                            if (status.contains('"status":"live"')) {
-                                deploymentComplete = true
-                                echo "Deployment completed successfully!"
-                            } else if (status.contains("error") || status.contains("Unauthorized")) {
-                                error "Error checking deployment status: ${status}"
-                            } else {
-                                echo "Deployment still in progress. Current status: ${status}"
-                            }
-                        }
-                        
-                        if (!deploymentComplete) {
-                            error "Deployment timed out after ${timeout} seconds"
-                        }
-                    } catch (Exception e) {
-                        error "Deployment failed: ${e.getMessage()}"
                     }
                 }
             }
@@ -154,39 +122,15 @@ pipeline {
     
     post {
         always {
-            script {
-                try {
-                    // Clean workspace
-                    cleanWs(
-                        cleanWhenSuccess: true,
-                        cleanWhenFailure: true,
-                        cleanWhenAborted: true,
-                        deleteDirs: true
-                    )
-                    
-                    // Clean Docker
-                    sh '''
-                        docker system prune -f || true
-                        docker volume prune -f || true
-                    '''
-                } catch (Exception e) {
-                    echo "Cleanup failed: ${e.getMessage()}"
-                }
-            }
+            cleanWs()
+            sh 'docker system prune -f || true'
+            sh 'docker volume prune -f || true'
         }
         success {
-            script {
-                echo 'Pipeline completed successfully!'
-                // Add notification here if needed
-                // slackSend channel: '#deployments', color: 'good', message: "Deploy successful: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
-            }
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            script {
-                echo 'Pipeline failed! Check the logs for details.'
-                // Add notification here if needed
-                // slackSend channel: '#deployments', color: 'danger', message: "Deploy failed: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
-            }
+            echo 'Pipeline failed! Check the logs for details.'
         }
     }
 }
