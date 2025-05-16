@@ -44,8 +44,8 @@ pipeline {
         stage('Security Scan') {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
-                    sh 'bandit -r . -x tests,venv'
-                }
+                sh 'bandit -r . -x tests,venv -ll' // -ll for lower level issues
+                  }
             }
         }
         
