@@ -26,7 +26,7 @@ pipeline {
             agent {
                 docker {
                     image "python:${PYTHON_VERSION}"
-                    args '-u root -v ${WORKSPACE}:/app'
+                    args '-u root -v ${WORKSPACE}:/workspace'
                     reuseNode true
                 }
             }
@@ -37,9 +37,9 @@ pipeline {
                         pwd
                         echo "Directory contents:"
                         ls -la
-                        cd /app
-                        echo "App directory contents:"
-                        ls -la
+                        echo "Workspace directory contents:"
+                        ls -la /workspace
+                        cd /workspace
                         python --version
                         pip install --no-cache-dir -r requirements.txt
                         pip install --no-cache-dir flake8 black pylint pytest pytest-cov pytest-html bandit safety
@@ -54,7 +54,7 @@ pipeline {
                 stage('Code Quality') {
                     steps {
                         sh '''
-                            cd /app
+                            cd /workspace
                             flake8 . --exclude=venv,tests || true
                             black . --check || true
                             pylint --recursive=y . || true
@@ -65,7 +65,7 @@ pipeline {
                 stage('Unit Tests') {
                     steps {
                         sh '''
-                            cd /app
+                            cd /workspace
                             python -m pytest tests/ \
                                 --cov=. \
                                 --cov-report=xml \
@@ -79,7 +79,7 @@ pipeline {
                 stage('Security Scan') {
                     steps {
                         sh '''
-                            cd /app
+                            cd /workspace
                             bandit -r . -x tests/ || true
                             safety check || true
                         '''
