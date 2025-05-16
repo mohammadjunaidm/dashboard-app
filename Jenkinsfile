@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-    TOMCAT_HOST = 'localhost'
-    TOMCAT_PORT = '9090'
-    TOMCAT_CREDENTIALS = credentials('tomcat-admin-credential')
+        TOMCAT_HOST = 'localhost'
+        TOMCAT_PORT = '9090'
+        TOMCAT_CREDENTIALS = credentials('tomcat-admin-credential')
     }
 
     stages {
@@ -39,24 +39,36 @@ pipeline {
         stage('Deploy to Tomcat') {
             steps {
                 script {
-                    def remoteDir = "/opt/tomcat/webapps"
                     def warFile = "application.war"
 
-                    // Stop Tomcat
-                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'sudo systemctl stop tomcat'"
+                    // Stop any existing application
+                    try {
+                        sh """
+                            curl -v -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
+                            'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/undeploy?path=/application'
+                        """
+                    } catch (err) {
+                        echo "Application was not previously deployed or couldn't be undeployed: ${err}"
+                    }
 
-                    // Remove old application
-                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'rm -rf ${remoteDir}/application'"
-                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'rm -f ${remoteDir}/application.war'"
+                    // Deploy new WAR file
+                    sh """
+                        curl -v -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
+                        -T ${warFile} \
+                        'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/deploy?path=/application&update=true'
+                    """
 
-                    // Copy new WAR file
-                    sh "scp ${warFile} ${TOMCAT_USER}@${TOMCAT_HOST}:${remoteDir}/"
+                    // Verify deployment
+                    sh """
+                        curl -v -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
+                        'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/list' | grep 'application'
+                    """
 
-                    // Start Tomcat
-                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'sudo systemctl start tomcat'"
-
-                    // Start Gunicorn
-                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'cd ${remoteDir}/application && ../venv/bin/gunicorn --bind 0.0.0.0:8000 wsgi:app &'"
+                    // Start Gunicorn (if needed)
+                    sh """
+                        cd ${WORKSPACE}
+                        python -m gunicorn --bind 0.0.0.0:8000 wsgi:app -D
+                    """
                 }
             }
         }
