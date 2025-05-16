@@ -9,7 +9,7 @@ pipeline {
     }
     
     options {
-        skipDefaultCheckout(false)  // Change this to false to ensure checkout happens
+        skipDefaultCheckout(false)
         disableConcurrentBuilds()
     }
     
@@ -18,7 +18,7 @@ pipeline {
             steps {
                 cleanWs()
                 checkout scm
-                sh 'pwd && ls -la'  // Debug: Print current directory and its contents
+                sh 'pwd && ls -la'
             }
         }
         
@@ -26,15 +26,20 @@ pipeline {
             agent {
                 docker {
                     image "python:${PYTHON_VERSION}"
-                    args '-u root -v $WORKSPACE:/app'
+                    args '-u root -v ${WORKSPACE}:/app'
                     reuseNode true
                 }
             }
             steps {
                 script {
                     sh '''
+                        echo "Current directory:"
+                        pwd
+                        echo "Directory contents:"
+                        ls -la
                         cd /app
-                        pwd && ls -la  // Debug: Print current directory and its contents
+                        echo "App directory contents:"
+                        ls -la
                         python --version
                         pip install --no-cache-dir -r requirements.txt
                         pip install --no-cache-dir flake8 black pylint pytest pytest-cov pytest-html bandit safety
