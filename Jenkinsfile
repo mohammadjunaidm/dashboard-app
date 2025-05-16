@@ -121,7 +121,7 @@ pipeline {
                         def deploymentComplete = false
                         def timeout = DEPLOY_TIMEOUT.toInteger()
                         def startTime = System.currentTimeMillis()
-                        def checkInterval = 20 // Check every 20 seconds
+                        def checkInterval = 2 // Check every 20 seconds
                         
                         while (!deploymentComplete && (System.currentTimeMillis() - startTime) < (timeout * 1000)) {
                             sleep checkInterval
