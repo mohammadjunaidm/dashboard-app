@@ -11,4 +11,4 @@ Flask-Login==0.6.3
 Flask-Bcrypt==1.0.1
 SQLAlchemy==2.0.39
 cryptography>=42.0.0
-pytest==latest_version
+pytest>=7.4.0
