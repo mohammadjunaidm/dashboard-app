@@ -20,6 +20,13 @@ pipeline {
                 sh 'pip install flake8 bandit'  // Install additional tools for later stages
             }
         }
+
+        stage('List Directory Contents') {
+            steps {
+                sh 'pwd'
+                sh 'ls -la'
+            }
+        }
         
         stage('Run Unit Tests') {
             steps {
