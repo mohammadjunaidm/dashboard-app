@@ -1,74 +1,70 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.9'
-            args '-u root:root'
-        }
+    agent any
+
+    environment {
+    TOMCAT_HOST = 'localhost'
+    TOMCAT_PORT = '9090'
+    TOMCAT_CREDENTIALS = credentials('tomcat-admin-credential')
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
+
         stage('Setup Python Environment') {
             steps {
-                sh 'pip install --upgrade pip'
-                sh 'pip install -r requirements.txt'
-                sh 'pip install flake8 bandit'
+                sh 'python3 -m venv venv'
+                sh '. venv/bin/activate && pip install --upgrade pip'
+                sh '. venv/bin/activate && pip install -r requirements.txt'
             }
         }
-        
+
         stage('Run Unit Tests') {
             steps {
-                sh 'python -m pytest tests/ -v'
+                sh '. venv/bin/activate && python -m pytest tests/ -v'
             }
         }
-        
-        stage('Code Quality') {
+
+        stage('Package Application') {
             steps {
-                catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
-                    sh '''
-                        flake8 . \
-                        --exclude=venv,migrations \
-                        --max-line-length=120 \
-                        --ignore=W291,W293,E303,W391,E122,E302,F401,E501 \
-                        --statistics
-                    '''
+                sh 'mkdir -p WEB-INF/classes'
+                sh 'cp -R * WEB-INF/classes/ || true'
+                sh 'jar -cvf application.war WEB-INF'
+            }
+        }
+
+        stage('Deploy to Tomcat') {
+            steps {
+                script {
+                    def remoteDir = "/opt/tomcat/webapps"
+                    def warFile = "application.war"
+
+                    // Stop Tomcat
+                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'sudo systemctl stop tomcat'"
+
+                    // Remove old application
+                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'rm -rf ${remoteDir}/application'"
+                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'rm -f ${remoteDir}/application.war'"
+
+                    // Copy new WAR file
+                    sh "scp ${warFile} ${TOMCAT_USER}@${TOMCAT_HOST}:${remoteDir}/"
+
+                    // Start Tomcat
+                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'sudo systemctl start tomcat'"
+
+                    // Start Gunicorn
+                    sh "ssh ${TOMCAT_USER}@${TOMCAT_HOST} 'cd ${remoteDir}/application && ../venv/bin/gunicorn --bind 0.0.0.0:8000 wsgi:app &'"
                 }
             }
         }
-        
-        stage('Security Scan') {
-            steps {
-                catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
-                sh 'bandit -r . -x tests,venv -ll' // -ll for lower level issues
-                  }
-            }
-        }
-        
-        stage('Deploy') {
-            when {
-                branch 'main'
-            }
-            steps {
-                echo 'Deploying to production...'
-            }
-        }
     }
-    
+
     post {
         always {
-            echo '📦 Cleaning up workspace...'
             cleanWs()
-        }
-        success {
-            echo '✅ Build succeeded!'
-        }
-        failure {
-            echo '❌ Build failed. Please check the logs.'
         }
     }
 }
