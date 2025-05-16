@@ -17,7 +17,9 @@ pipeline {
         stage('Setup Python Environment') {
             steps {
                 sh '''
-                    python3 -m venv venv
+                    python3 --version
+                    which python3
+                    python3 -m venv venv || echo "Failed to create venv"
                     . venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
