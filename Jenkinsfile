@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'adoptopenjdk/openjdk11:latest'  // Base image with Java
-            args '-u root:root'
+            args '-u root:root --network host'
         }
     }
 
@@ -69,20 +69,43 @@ pipeline {
                 script {
                     // Stop existing application
                     try {
-                        sh """
-                            curl -s -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
-                            'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/stop?path=/application'
-                        """
+                        withCredentials([usernamePassword(credentialsId: 'tomcat-admin-credential', 
+                                                        usernameVariable: 'TOMCAT_USER', 
+                                                        passwordVariable: 'TOMCAT_PASS')]) {
+                            sh '''
+                                curl -f -s -u "$TOMCAT_USER:$TOMCAT_PASS" \
+                                    "http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/stop?path=/application"
+                            '''
+                        }
                     } catch (err) {
-                        echo "Application was not running: ${err}"
+                        echo "Application was not running or could not be stopped: ${err}"
                     }
 
                     // Deploy new version
-                    sh """
-                        curl -s -u ${TOMCAT_CREDENTIALS_USR}:${TOMCAT_CREDENTIALS_PSW} \
-                        --upload-file application.war \
-                        'http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/deploy?path=/application&update=true'
-                    """
+                    withCredentials([usernamePassword(credentialsId: 'tomcat-admin-credential', 
+                                                    usernameVariable: 'TOMCAT_USER', 
+                                                    passwordVariable: 'TOMCAT_PASS')]) {
+                        sh '''
+                            curl -f -s -u "$TOMCAT_USER:$TOMCAT_PASS" \
+                                --upload-file application.war \
+                                "http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/deploy?path=/application&update=true"
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'tomcat-admin-credential', 
+                                                    usernameVariable: 'TOMCAT_USER', 
+                                                    passwordVariable: 'TOMCAT_PASS')]) {
+                        sh '''
+                            curl -f -s -u "$TOMCAT_USER:$TOMCAT_PASS" \
+                                "http://${TOMCAT_HOST}:${TOMCAT_PORT}/manager/text/list" | grep "application"
+                        '''
+                    }
                 }
             }
         }
