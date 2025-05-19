@@ -1,5 +1,4 @@
 pipeline {
-    agent any
     agent {
         docker {
             image 'python:3.8'
@@ -12,22 +11,9 @@ pipeline {
         APP_PORT = '8000'
     }
 
-@@ -13,44 +17,58 @@ pipeline {
-            }
-        }
-
-        stage('Setup Python') {
-            steps {
-                sh "python${PYTHON_VERSION} -m venv venv"
-                sh ". venv/bin/activate"
-            }
-        }
-
-        stage('Install Dependencies') {
+    stages {
         stage('Setup Python Environment') {
             steps {
-                sh "venv/bin/pip install -r requirements.txt"
-                sh "venv/bin/pip install gunicorn"
                 sh '''
                     python --version
                     python -m venv venv
@@ -41,7 +27,6 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                sh "venv/bin/python -m pytest tests/"
                 sh '''
                     . venv/bin/activate
                     python -m pytest tests/ -v
@@ -49,11 +34,8 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
         stage('Deploy Application') {
             steps {
-                sh "pkill -f gunicorn || true"
-                sh "venv/bin/gunicorn --bind 0.0.0.0:${APP_PORT} wsgi:app -D"
                 sh '''
                     . venv/bin/activate
                     pkill -f gunicorn || true
@@ -64,7 +46,6 @@ pipeline {
 
         stage('Verify Deployment') {
             steps {
-                sh "curl http://localhost:${APP_PORT}"
                 sh '''
                     sleep 5
                     curl http://localhost:${APP_PORT} || true
@@ -75,7 +56,6 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up workspace...'
             echo '🧹 Cleaning workspace...'
             cleanWs()
         }
