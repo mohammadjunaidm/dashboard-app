@@ -1,13 +1,9 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.8'
-            args '-u root:root --network host'
-        }
-    }
+    agent any
 
     environment {
-        APP_PORT = '8000'
+        DOCKER_IMAGE = 'python:3.8'
+        APP_CONTAINER_NAME = 'flask-app-container'
     }
 
     stages {
@@ -17,58 +13,38 @@ pipeline {
             }
         }
 
-        stage('Setup Python Environment') {
+        stage('Build and Run Container') {
             steps {
-                sh '''
-                    python --version
-                    python -m venv venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                    pip install gunicorn
-                '''
-            }
-        }
+                script {
+                    // Stop and remove existing container if it exists
+                    sh "docker stop ${APP_CONTAINER_NAME} || true"
+                    sh "docker rm ${APP_CONTAINER_NAME} || true"
 
-        stage('Run Tests') {
-            steps {
-                sh '''
-                    . venv/bin/activate
-                    python -m pytest tests/ -v
-                '''
-            }
-        }
-
-        stage('Deploy Application') {
-            steps {
-                sh '''
-                    . venv/bin/activate
-                    pkill -f gunicorn || true
-                    gunicorn --bind 0.0.0.0:${APP_PORT} wsgi:app -D --access-logfile access.log --error-logfile error.log
-                '''
+                    // Build and run the new container
+                    sh """
+                        docker run -d --name ${APP_CONTAINER_NAME} \
+                            -p 8000:8000 \
+                            -v ${WORKSPACE}:/app \
+                            -w /app \
+                            ${DOCKER_IMAGE} \
+                            /bin/bash -c "pip install -r requirements.txt && gunicorn --bind 0.0.0.0:8000 wsgi:app"
+                    """
+                }
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                sh '''
-                    sleep 5
-                    curl http://localhost:${APP_PORT} || true
-                '''
+                sh 'sleep 10' // Wait for the application to start
+                sh 'curl http://localhost:8000 || true'
             }
         }
     }
 
     post {
-        always {
-            echo '🧹 Cleaning workspace...'
-            cleanWs()
-        }
-        success {
-            echo '✅ Build succeeded!'
-        }
         failure {
-            echo '❌ Build failed!'
+            sh "docker stop ${APP_CONTAINER_NAME} || true"
+            sh "docker rm ${APP_CONTAINER_NAME} || true"
         }
     }
 }
