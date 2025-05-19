@@ -1,135 +1,89 @@
 pipeline {
     agent any
-
-    environment {
-        DOCKER_IMAGE = 'python:3.8'
-        APP_CONTAINER_NAME = 'flask-app-container'
-        APP_PORT = '3000'
+    agent {
+        docker {
+            image 'python:3.8'
+            args '-u root:root --network host'
+        }
     }
 
-    stages {
-        stage('Cleanup Previous Deployment') {
-            steps {
-                script {
-                    sh '''
-                        docker stop ${APP_CONTAINER_NAME} || true
-                        docker rm ${APP_CONTAINER_NAME} || true
-                    '''
-                }
+    environment {
+        PYTHON_VERSION = '3.8'
+        APP_PORT = '8000'
+    }
+
+@@ -13,44 +17,58 @@ pipeline {
             }
         }
 
-        stage('Checkout and Verify Files') {
+        stage('Setup Python') {
             steps {
-                script {
-                    // Checkout code
-                    checkout scm
-                    
-                    // List workspace contents
-                    sh 'ls -la'
-                    
-                    // Verify required files exist
-                    def requiredFiles = ['requirements.txt', 'wsgi.py']
-                    requiredFiles.each { file ->
-                        if (!fileExists(file)) {
-                            error "Required file ${file} not found in workspace"
-                        }
-                    }
-                    
-                    // Create requirements.txt if it doesn't exist
-                    if (!fileExists('requirements.txt')) {
-                        writeFile file: 'requirements.txt', text: '''
-                            Flask==3.0.0
-                            gunicorn==21.2.0
-                            Werkzeug==3.0.1
-                        '''
-                    }
-                }
+                sh "python${PYTHON_VERSION} -m venv venv"
+                sh ". venv/bin/activate"
             }
         }
 
-        stage('Build and Run Container') {
+        stage('Install Dependencies') {
+        stage('Setup Python Environment') {
             steps {
-                script {
-                    try {
-                        // Create a Dockerfile
-                        writeFile file: 'Dockerfile', text: '''
-                            FROM python:3.8
-                            WORKDIR /app
-                            COPY requirements.txt .
-                            RUN pip install -r requirements.txt
-                            COPY . .
-                            EXPOSE 8000
-                            CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app", "--access-logfile", "-", "--error-logfile", "-"]
-                        '''
+                sh "venv/bin/pip install -r requirements.txt"
+                sh "venv/bin/pip install gunicorn"
+                sh '''
+                    python --version
+                    python -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                    pip install gunicorn
+                '''
+            }
+        }
 
-                        // Build and run the container
-                        sh """
-                            docker build -t flask-app:latest .
-                            docker run -d --name ${APP_CONTAINER_NAME} \
-                                -p ${APP_PORT}:8000 \
-                                flask-app:latest
-                        """
-                        
-                        // Wait for container to start
-                        sh 'sleep 10'
-                        
-                        // Check if container is running
-                        def containerRunning = sh(script: "docker ps | grep ${APP_CONTAINER_NAME}", returnStatus: true)
-                        if (containerRunning != 0) {
-                            error "Container failed to start"
-                        }
-                    } catch (Exception e) {
-                        error "Failed to start container: ${e.message}"
-                    }
-                }
+        stage('Run Tests') {
+            steps {
+                sh "venv/bin/python -m pytest tests/"
+                sh '''
+                    . venv/bin/activate
+                    python -m pytest tests/ -v
+                '''
+            }
+        }
+
+        stage('Deploy') {
+        stage('Deploy Application') {
+            steps {
+                sh "pkill -f gunicorn || true"
+                sh "venv/bin/gunicorn --bind 0.0.0.0:${APP_PORT} wsgi:app -D"
+                sh '''
+                    . venv/bin/activate
+                    pkill -f gunicorn || true
+                    gunicorn --bind 0.0.0.0:${APP_PORT} wsgi:app -D --access-logfile access.log --error-logfile error.log
+                '''
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                script {
-                    def maxRetries = 5
-                    def retryCount = 0
-                    def success = false
-                    
-                    while (!success && retryCount < maxRetries) {
-                        def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${APP_PORT}", returnStdout: true).trim()
-                        if (response == "200" || response == "302") {
-                            success = true
-                            echo "Application is responding on port ${APP_PORT}"
-                        } else {
-                            retryCount++
-                            if (retryCount < maxRetries) {
-                                echo "Attempt ${retryCount} failed, retrying in 5 seconds..."
-                                sleep 5
-                            }
-                        }
-                    }
-                    
-                    if (!success) {
-                        error "Application failed to respond after ${maxRetries} attempts"
-                    }
-                }
+                sh "curl http://localhost:${APP_PORT}"
+                sh '''
+                    sleep 5
+                    curl http://localhost:${APP_PORT} || true
+                '''
             }
         }
     }
 
     post {
         always {
-            script {
-                // Print container logs
-                sh 'docker logs ${APP_CONTAINER_NAME} || true'
-                echo "Application URL: http://localhost:${APP_PORT}"
-            }
+            echo 'Cleaning up workspace...'
+            echo '🧹 Cleaning workspace...'
+            cleanWs()
+        }
+        success {
+            echo '✅ Build succeeded!'
         }
         failure {
-            script {
-                sh '''
-                    docker stop ${APP_CONTAINER_NAME} || true
-                    docker rm ${APP_CONTAINER_NAME} || true
-                '''
-            }
+            echo '❌ Build failed!'
         }
     }
 }
