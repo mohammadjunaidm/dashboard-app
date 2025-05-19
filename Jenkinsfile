@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.8'
-            args '-u root:root --network host'
-        }
-    }
+    agent any
 
     environment {
         PYTHON_VERSION = '3.8'
@@ -15,8 +10,8 @@ pipeline {
         stage('Setup Python Environment') {
             steps {
                 sh '''
-                    python --version
-                    python -m venv venv
+                    python3 --version
+                    python3 -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
