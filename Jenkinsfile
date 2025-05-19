@@ -4,38 +4,47 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'python:3.8'
         APP_CONTAINER_NAME = 'flask-app-container'
-        APP_PORT = '3000'  // Changed to use port 3000
+        APP_PORT = '3000'
     }
 
     stages {
         stage('Cleanup Previous Deployment') {
             steps {
                 script {
-                    // Clean up any existing containers with the same name
                     sh '''
-                        if docker ps -a | grep -q ${APP_CONTAINER_NAME}; then
-                            docker stop ${APP_CONTAINER_NAME}
-                            docker rm ${APP_CONTAINER_NAME}
-                        fi
-                    '''
-                    
-                    // Kill any process using our port
-                    sh '''
-                        if netstat -tuln | grep :${APP_PORT}; then
-                            pid=$(lsof -t -i:${APP_PORT} || true)
-                            if [ ! -z "$pid" ]; then
-                                kill -9 $pid || true
-                            fi
-                        fi
+                        docker stop ${APP_CONTAINER_NAME} || true
+                        docker rm ${APP_CONTAINER_NAME} || true
                     '''
                 }
             }
         }
 
-        stage('Checkout') {
+        stage('Checkout and Verify Files') {
             steps {
-                // Checkout code from Git repository
-                checkout scm
+                script {
+                    // Checkout code
+                    checkout scm
+                    
+                    // List workspace contents
+                    sh 'ls -la'
+                    
+                    // Verify required files exist
+                    def requiredFiles = ['requirements.txt', 'wsgi.py']
+                    requiredFiles.each { file ->
+                        if (!fileExists(file)) {
+                            error "Required file ${file} not found in workspace"
+                        }
+                    }
+                    
+                    // Create requirements.txt if it doesn't exist
+                    if (!fileExists('requirements.txt')) {
+                        writeFile file: 'requirements.txt', text: '''
+                            Flask==3.0.0
+                            gunicorn==21.2.0
+                            Werkzeug==3.0.1
+                        '''
+                    }
+                }
             }
         }
 
@@ -43,17 +52,26 @@ pipeline {
             steps {
                 script {
                     try {
-                        // Run the container with the Flask application
+                        // Create a Dockerfile
+                        writeFile file: 'Dockerfile', text: '''
+                            FROM python:3.8
+                            WORKDIR /app
+                            COPY requirements.txt .
+                            RUN pip install -r requirements.txt
+                            COPY . .
+                            EXPOSE 8000
+                            CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app", "--access-logfile", "-", "--error-logfile", "-"]
+                        '''
+
+                        // Build and run the container
                         sh """
+                            docker build -t flask-app:latest .
                             docker run -d --name ${APP_CONTAINER_NAME} \
                                 -p ${APP_PORT}:8000 \
-                                -v ${WORKSPACE}:/app \
-                                -w /app \
-                                ${DOCKER_IMAGE} \
-                                /bin/bash -c "pip install -r requirements.txt && gunicorn --bind 0.0.0.0:8000 wsgi:app --access-logfile - --error-logfile -"
+                                flask-app:latest
                         """
                         
-                        // Wait for container to be running
+                        // Wait for container to start
                         sh 'sleep 10'
                         
                         // Check if container is running
@@ -71,7 +89,6 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 script {
-                    // Test the application
                     def maxRetries = 5
                     def retryCount = 0
                     def success = false
@@ -103,14 +120,11 @@ pipeline {
             script {
                 // Print container logs
                 sh 'docker logs ${APP_CONTAINER_NAME} || true'
-                
-                // Print application URL
                 echo "Application URL: http://localhost:${APP_PORT}"
             }
         }
         failure {
             script {
-                // Cleanup on failure
                 sh '''
                     docker stop ${APP_CONTAINER_NAME} || true
                     docker rm ${APP_CONTAINER_NAME} || true
