@@ -43,7 +43,7 @@ app.config.update(
 # Auth0 Configuration
 AUTH0_CLIENT_ID = 'WciBRzDUEDoGE8qnIw79j1m7zTgjRVej'
 AUTH0_CLIENT_SECRET = 'cHLwgvLKeIcSBgIV8IOBLE4YubTGO9r8yXEFwEHpy-_cDx6HRDsIpFhhNrgQjdSN'
-AUTH0_DOMAIN = 'dev-lfn8lppapsdnekww.us.auth0.com'
+AUTH0_DOMAIN = 'dev-dqfud7cqdl5fv3tm.us.auth0.com'
 
 
 
